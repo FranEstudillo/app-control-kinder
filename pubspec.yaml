@@ -1,14 +1,15 @@
+dependencies:
+  flutter:
+    sdk: flutter
+  # ... otras dependencias
+  image_picker: ^1.1.2 # O la versión más reciente
 name: app_control_kinder_v4
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 version: 0.1.0
 
 environment:
   sdk: ^3.8.1
-
-dependencies:
-  flutter:
-    sdk: flutter
 
 dev_dependencies:
   flutter_test:
