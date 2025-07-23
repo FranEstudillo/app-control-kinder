@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "672231367520",
+    "project_id": "app-control-kinder",
+    "storage_bucket": "app-control-kinder.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:672231367520:android:7e701822385eef13bc3405",
+        "android_client_info": {
+          "package_name": "com.example.app_control_kinder_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuOn4udpc9dPSGuu4694iAll99irB2LjE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:672231367520:android:4b928334892fe030bc3405",
+        "android_client_info": {
+          "package_name": "com.example.app_control_kinder_v4"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuOn4udpc9dPSGuu4694iAll99irB2LjE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

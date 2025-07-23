@@ -3,6 +3,9 @@ dependencies:
     sdk: flutter
   # ... otras dependencias
   image_picker: ^1.1.2 # O la versión más reciente
+  firebase_core: ^3.1.1
+  cloud_firestore: ^5.0.2
+  firebase_storage: ^12.1.0
 name: app_control_kinder_v4
 description: "A new Flutter project."
 publish_to: "none"
@@ -12,9 +15,18 @@ environment:
   sdk: ^3.8.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+# Configuración para el paquete de íconos
+flutter_launcher_icons:
+  android: true # Generar íconos para Android
+  ios: true # Generar íconos para iOS
+  image_path: "lib/assets/icon/icono-app.png" # ¡IMPORTANTE! Reemplaza esto con la ruta a tu ícono
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/ # Agrega esta línea para que Flutter reconozca la carpeta

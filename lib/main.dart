@@ -1,9 +1,15 @@
 // This line is already correct and points to the correct package.
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'firebase_options.dart';
 import 'dart:io';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MainApp());
 }
 
@@ -114,9 +120,59 @@ class HomeScreen extends StatelessWidget {
 class Alumno {
   final String nombre;
   final String grado;
-  final String? fotoPath; // Cambiamos a fotoPath para guardar la ruta local
+  final String? fotoUrl; // Ahora guardamos la URL de la imagen en la nube
+  final String? id; // ID del documento de Firestore
 
-  const Alumno({required this.nombre, required this.grado, this.fotoPath});
+  const Alumno({
+    required this.nombre,
+    required this.grado,
+    this.fotoUrl,
+    this.id,
+  });
+
+  // Convierte un objeto Alumno a un Map para Firestore
+  Map<String, dynamic> toJson() {
+    return {'nombre': nombre, 'grado': grado, 'fotoUrl': fotoUrl};
+  }
+
+  // Crea un objeto Alumno desde un documento de Firestore
+  factory Alumno.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Alumno(
+      id: doc.id,
+      nombre: data['nombre'],
+      grado: data['grado'],
+      fotoUrl: data['fotoUrl'],
+    );
+  }
+}
+
+// Modelo para los datos de un pago.
+class Pago {
+  final String id;
+  final String rubro;
+  final double monto;
+  final Timestamp fechaPago;
+  final String metodoPago;
+
+  const Pago({
+    required this.id,
+    required this.rubro,
+    required this.monto,
+    required this.fechaPago,
+    required this.metodoPago,
+  });
+
+  factory Pago.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Pago(
+      id: doc.id,
+      rubro: data['rubro'] as String,
+      monto: (data['monto'] as num).toDouble(),
+      fechaPago: data['fechaPago'] as Timestamp,
+      metodoPago: data['metodoPago'] as String,
+    );
+  }
 }
 
 class AlumnosScreen extends StatefulWidget {
@@ -127,22 +183,6 @@ class AlumnosScreen extends StatefulWidget {
 }
 
 class _AlumnosScreenState extends State<AlumnosScreen> {
-  // 2. Movemos la lista al estado para poder modificarla.
-  final List<Alumno> _alumnos = [
-    const Alumno(nombre: 'Ana García', grado: 'Kinder 2'),
-    const Alumno(nombre: 'Luis Fernández', grado: 'Maternal'),
-    const Alumno(nombre: 'Sofía Martínez', grado: 'Kinder 3'),
-    const Alumno(nombre: 'Carlos Rodríguez', grado: 'Kinder 1'),
-    const Alumno(nombre: 'Elena Gómez', grado: 'Kinder 2'),
-    const Alumno(nombre: 'Javier Pérez', grado: 'Maternal'),
-  ];
-
-  void _agregarAlumno(Alumno alumno) {
-    setState(() {
-      _alumnos.add(alumno);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,113 +191,123 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),
-      // 3. Usamos SingleChildScrollView para que la tabla sea desplazable
-      // si el contenido es más ancho que la pantalla.
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            // 4. Usamos ConstrainedBox para asegurar que la tabla tenga un ancho mínimo
-            // igual al de la pantalla, haciendo que se estire para ocupar todo el espacio.
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(
-                columnSpacing: 38.0,
-                // Definimos las columnas de nuestra tabla
-                columns: const [
-                  DataColumn(
-                    label: Text(
-                      'Foto',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Nombre',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Grado',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-                // Mapeamos la lista de alumnos a filas en la tabla
-                rows: _alumnos.map((alumno) {
-                  return DataRow(
-                    // Se elimina onSelectChanged para quitar el checkbox automático.
-                    // En su lugar, se agrega un onTap a cada DataCell.
-                    cells: [
-                      DataCell(
-                        // Usamos un CircleAvatar como marcador de posición para la foto
-                        CircleAvatar(
-                          // Si hay una ruta de foto, la mostramos. Si no, mostramos el ícono.
-                          backgroundImage: alumno.fotoPath != null
-                              ? FileImage(File(alumno.fotoPath!))
-                              : null,
-                          backgroundColor: Colors.amber[100],
-                          child: alumno.fotoPath == null
-                              ? const Icon(Icons.person, color: Colors.amber)
-                              : null,
+      // Usamos StreamBuilder para escuchar los datos de Firestore en tiempo real.
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('alumnos').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            // Imprimimos el error en la consola para un mejor diagnóstico.
+            print('Error al leer de Firestore: ${snapshot.error}');
+            return const Center(child: Text('Ocurrió un error'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No hay alumnos registrados.'));
+          }
+
+          final alumnos = snapshot.data!.docs
+              .map((doc) => Alumno.fromFirestore(doc))
+              .toList();
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    columnSpacing: 38.0,
+                    columns: const [
+                      DataColumn(
+                        label: Text(
+                          'Foto',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AlumnoDetalleScreen(alumno: alumno),
-                            ),
-                          );
-                        },
                       ),
-                      DataCell(
-                        Text(alumno.nombre),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AlumnoDetalleScreen(alumno: alumno),
-                            ),
-                          );
-                        },
+                      DataColumn(
+                        label: Text(
+                          'Nombre',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      DataCell(
-                        Text(alumno.grado),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AlumnoDetalleScreen(alumno: alumno),
-                            ),
-                          );
-                        },
+                      DataColumn(
+                        label: Text(
+                          'Grado',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
-                  );
-                }).toList(),
-              ),
-            ),
+                    rows: alumnos.map((alumno) {
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            CircleAvatar(
+                              backgroundImage: alumno.fotoUrl != null
+                                  ? NetworkImage(alumno.fotoUrl!)
+                                  : null,
+                              backgroundColor: Colors.amber[100],
+                              child: alumno.fotoUrl == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      color: Colors.amber,
+                                    )
+                                  : null,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      AlumnoDetalleScreen(alumno: alumno),
+                                ),
+                              );
+                            },
+                          ),
+                          DataCell(
+                            Text(alumno.nombre),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      AlumnoDetalleScreen(alumno: alumno),
+                                ),
+                              );
+                            },
+                          ),
+                          DataCell(
+                            Text(alumno.grado),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      AlumnoDetalleScreen(alumno: alumno),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           // Navegamos al formulario y esperamos a que nos devuelva un nuevo alumno.
-          final nuevoAlumno = await Navigator.push<Alumno>(
+          await Navigator.push<Alumno>(
             context,
             MaterialPageRoute(
               builder: (context) => const AgregarAlumnoScreen(),
             ),
           );
-
-          // Si recibimos un alumno, lo agregamos a la lista.
-          if (nuevoAlumno != null) {
-            _agregarAlumno(nuevoAlumno);
-          }
         },
         backgroundColor: Colors.amber,
         child: const Icon(Icons.add, color: Colors.white),
@@ -289,11 +339,11 @@ class AlumnoDetalleScreen extends StatelessWidget {
             // Foto del alumno
             CircleAvatar(
               radius: 80,
-              backgroundImage: alumno.fotoPath != null
-                  ? FileImage(File(alumno.fotoPath!))
+              backgroundImage: alumno.fotoUrl != null
+                  ? NetworkImage(alumno.fotoUrl!)
                   : null,
               backgroundColor: Colors.amber[100],
-              child: alumno.fotoPath == null
+              child: alumno.fotoUrl == null
                   ? const Icon(Icons.person, size: 100, color: Colors.amber)
                   : null,
             ),
@@ -316,10 +366,11 @@ class AlumnoDetalleScreen extends StatelessWidget {
             // Botón de información de pagos
             ElevatedButton(
               onPressed: () {
-                // Aquí irá la lógica para la información de pagos.
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Funcionalidad de pagos próximamente.'),
+                // Navegamos a la pantalla de pagos del alumno.
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PagosScreen(alumno: alumno),
                   ),
                 );
               },
@@ -337,6 +388,278 @@ class AlumnoDetalleScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Nueva pantalla para mostrar los rubros de pago de un alumno.
+class PagosScreen extends StatelessWidget {
+  final Alumno alumno;
+
+  const PagosScreen({super.key, required this.alumno});
+
+  @override
+  Widget build(BuildContext context) {
+    // Lista de los rubros de pago.
+    final List<String> rubrosDePago = [
+      'Inscripción',
+      'Material Escolar',
+      'Libros',
+      'Uniforme',
+      'Bata',
+      'Colegiatura',
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Pagos de ${alumno.nombre}'),
+        backgroundColor: Colors.amber,
+        foregroundColor: Colors.white,
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('alumnos')
+            .doc(alumno.id)
+            .collection('pagos')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error al cargar los pagos.'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: Text('No se encontraron pagos.'));
+          }
+
+          // Creamos un mapa de los pagos realizados para una búsqueda rápida.
+          final pagosRealizados = {
+            for (var doc in snapshot.data!.docs)
+              doc.data()['rubro'] as String: Pago.fromFirestore(doc),
+          };
+
+          return ListView.separated(
+            itemCount: rubrosDePago.length,
+            itemBuilder: (context, index) {
+              final rubro = rubrosDePago[index];
+              final pago = pagosRealizados[rubro];
+              final isPagado = pago != null;
+
+              return ListTile(
+                leading: Icon(
+                  isPagado ? Icons.check_circle : Icons.hourglass_empty,
+                  color: isPagado ? Colors.green : Colors.orange,
+                ),
+                title: Text(rubro),
+                trailing: Text(
+                  isPagado ? 'Pagado' : 'Pendiente',
+                  style: TextStyle(
+                    color: isPagado ? Colors.green : Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () {
+                  if (isPagado) {
+                    _showPaymentDetailsDialog(context, pago);
+                  } else {
+                    _showAddPaymentDialog(context, rubro);
+                  }
+                },
+              );
+            },
+            separatorBuilder: (context, index) => const Divider(height: 1),
+          );
+        },
+      ),
+    );
+  }
+
+  // Método para mostrar el diálogo de registro de pago.
+  Future<void> _showAddPaymentDialog(BuildContext context, String rubro) async {
+    final formKey = GlobalKey<FormState>();
+    final montoController = TextEditingController();
+    final fechaController = TextEditingController();
+    DateTime? selectedDate;
+    String? selectedMetodo;
+    final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Registrar Pago: $rubro'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  // Para evitar desbordamiento si aparece el teclado.
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      TextFormField(
+                        controller: montoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Monto',
+                          prefixIcon: Icon(Icons.attach_money),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingrese el monto';
+                          }
+                          if (double.tryParse(value) == null) {
+                            return 'Por favor, ingrese un número válido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: fechaController,
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de Pago',
+                          prefixIcon: Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2101),
+                          );
+                          if (picked != null && picked != selectedDate) {
+                            setState(() {
+                              selectedDate = picked;
+                              // Para un formato más amigable, se puede usar el paquete 'intl'.
+                              fechaController.text =
+                                  "${picked.day}/${picked.month}/${picked.year}";
+                            });
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, seleccione una fecha';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedMetodo,
+                        decoration: const InputDecoration(
+                          labelText: 'Método de Pago',
+                          prefixIcon: Icon(Icons.credit_card),
+                          border: OutlineInputBorder(),
+                        ),
+                        hint: const Text('Seleccione un método'),
+                        items: metodosDePago.map((String metodo) {
+                          return DropdownMenuItem<String>(
+                            value: metodo,
+                            child: Text(metodo),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() => selectedMetodo = newValue);
+                        },
+                        validator: (value) => value == null
+                            ? 'Por favor, seleccione un método'
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Guardar'),
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  // 1. Preparamos los datos para Firestore.
+                  final pagoData = {
+                    'rubro': rubro,
+                    'monto': double.parse(montoController.text),
+                    'fechaPago': Timestamp.fromDate(selectedDate!),
+                    'metodoPago': selectedMetodo,
+                  };
+
+                  try {
+                    // 2. Guardamos el nuevo documento en la subcolección 'pagos' del alumno.
+                    await FirebaseFirestore.instance
+                        .collection('alumnos')
+                        .doc(alumno.id)
+                        .collection('pagos')
+                        .add(pagoData);
+
+                    Navigator.of(dialogContext).pop(); // Cerramos el diálogo
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Pago guardado correctamente.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error al guardar el pago: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Método para mostrar los detalles de un pago ya realizado.
+  void _showPaymentDetailsDialog(BuildContext context, Pago pago) {
+    final fecha = pago.fechaPago.toDate();
+    final fechaFormateada = "${fecha.day}/${fecha.month}/${fecha.year}";
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Detalle del Pago: ${pago.rubro}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Monto: \$${pago.monto.toStringAsFixed(2)}'),
+              const SizedBox(height: 8),
+              Text('Fecha de Pago: $fechaFormateada'),
+              const SizedBox(height: 8),
+              Text('Método: ${pago.metodoPago}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cerrar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -383,16 +706,44 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
     }
   }
 
-  void _guardarAlumno() {
+  Future<void> _guardarAlumno() async {
     // Validamos que el formulario esté correcto.
     if (_formKey.currentState!.validate()) {
+      String? fotoUrl;
+
+      // 1. Subir la imagen a Firebase Storage si se seleccionó una.
+      if (_imageFile != null) {
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final ref = FirebaseStorage.instance.ref().child(
+          'fotos_alumnos/$fileName',
+        );
+
+        try {
+          await ref.putFile(_imageFile!);
+          fotoUrl = await ref.getDownloadURL();
+        } catch (e) {
+          if (!mounted) return;
+          // Manejar error de subida
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al subir la foto: $e')));
+          return;
+        }
+      }
+
+      // 2. Crear el objeto Alumno y guardarlo en Firestore.
       final nuevoAlumno = Alumno(
         nombre: _nombreController.text,
         grado: _selectedGrado!,
-        fotoPath: _imageFile?.path, // Guardamos la ruta de la imagen
+        fotoUrl: fotoUrl,
       );
-      // Si es válido, cerramos la pantalla y devolvemos el nuevo alumno.
-      Navigator.pop(context, nuevoAlumno);
+
+      await FirebaseFirestore.instance
+          .collection('alumnos')
+          .add(nuevoAlumno.toJson());
+
+      // 3. Cerrar la pantalla del formulario.
+      Navigator.pop(context);
     }
   }
 
