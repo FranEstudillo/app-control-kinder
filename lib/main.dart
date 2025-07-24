@@ -60,8 +60,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisSpacing: 16.0, // Espaciado horizontal entre tarjetas.
               mainAxisSpacing: 16.0, // Espaciado vertical entre tarjetas.
               children: <Widget>[
-                // Tarjeta de ejemplo para un alumno.
-                // Puedes copiar y pegar este widget Card para agregar más alumnos.
+                // Tarjeta de Alumnos
                 InkWell(
                   onTap: () {
                     Navigator.push(
@@ -71,9 +70,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  borderRadius: BorderRadius.circular(
-                    10.0,
-                  ), // Corrección: El radio debe coincidir con el de la Card para un efecto visual correcto.
+                  borderRadius: BorderRadius.circular(10.0),
                   // Aquí se ajusta la card de Alumnos
                   child: Card(
                     elevation: 4.0,
@@ -105,9 +102,385 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Tarjeta de Ingresos
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const IngresosScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Card(
+                    elevation: 4.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.green,
+                          child: Icon(
+                            Icons.monetization_on,
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Ingresos',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
             const Center(child: Text("Settings Screen")),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Pantalla de marcador de posición para la nueva funcionalidad de Ingresos.
+class IngresosScreen extends StatelessWidget {
+  const IngresosScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ingresos'),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+      // Usamos StreamBuilders anidados para obtener tanto los pagos como los gastos.
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collectionGroup('pagos').snapshots(),
+        builder: (context, pagosSnapshot) {
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('gastos').snapshots(),
+            builder: (context, gastosSnapshot) {
+              if (pagosSnapshot.connectionState == ConnectionState.waiting ||
+                  gastosSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (pagosSnapshot.hasError) {
+                print('Error en la consulta de grupo: ${pagosSnapshot.error}');
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Error al cargar los ingresos. Es posible que necesites crear un índice en Firestore. Revisa la consola de depuración para ver un enlace de creación de índice.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              if (gastosSnapshot.hasError) {
+                return const Center(child: Text('Error al cargar los gastos.'));
+              }
+
+              // Calculamos los ingresos
+              double totalIngresos = 0;
+              double totalEfectivo = 0;
+              double totalTarjeta = 0;
+
+              if (pagosSnapshot.hasData) {
+                for (var doc in pagosSnapshot.data!.docs) {
+                  final pago = Pago.fromFirestore(doc);
+                  totalIngresos += pago.monto;
+                  if (pago.metodoPago == 'Efectivo') {
+                    totalEfectivo += pago.monto;
+                  } else if (pago.metodoPago == 'Tarjeta') {
+                    totalTarjeta += pago.monto;
+                  }
+                }
+              }
+
+              // Calculamos los gastos
+              double totalGastosEfectivo = 0;
+              double totalGastosTarjeta = 0;
+              final List<Gasto> gastos = [];
+
+              if (gastosSnapshot.hasData) {
+                for (var doc in gastosSnapshot.data!.docs) {
+                  final gasto = Gasto.fromFirestore(doc);
+                  gastos.add(
+                    gasto,
+                  ); // ¡Aquí estaba el error! Faltaba agregar el gasto a la lista.
+                  if (gasto.fuente == 'Efectivo') {
+                    totalGastosEfectivo += gasto.monto;
+                  } else if (gasto.fuente == 'Tarjeta') {
+                    totalGastosTarjeta += gasto.monto;
+                  }
+                }
+
+                // Ordenamos los gastos del más reciente al más antiguo
+                gastos.sort((a, b) => b.fechaGasto.compareTo(a.fechaGasto));
+              }
+
+              // Calculamos los saldos netos
+              final saldoTotal =
+                  totalIngresos - (totalGastosEfectivo + totalGastosTarjeta);
+              final saldoEfectivo = totalEfectivo - totalGastosEfectivo;
+              final saldoTarjeta = totalTarjeta - totalGastosTarjeta;
+
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  // Columna principal para organizar tarjetas e historial
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Contenedor para las tarjetas de saldo
+                    Column(
+                      children: [
+                        _buildTotalCard(
+                          title: 'Saldo Total',
+                          amount: saldoTotal,
+                          icon: Icons.account_balance_wallet,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTotalCard(
+                          title: 'Saldo en Efectivo',
+                          amount: saldoEfectivo,
+                          icon: Icons.money,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTotalCard(
+                          title: 'Saldo con Tarjeta',
+                          amount: saldoTarjeta,
+                          icon: Icons.credit_card,
+                          color: Colors.orange,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Título para el historial
+                    const Text(
+                      'Historial de Gastos',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Divider(height: 8),
+                    // Lista expandida para el historial
+                    Expanded(
+                      child: gastos.isEmpty
+                          ? const Center(
+                              child: Text('No hay gastos registrados.'),
+                            )
+                          : ListView.builder(
+                              itemCount: gastos.length,
+                              itemBuilder: (context, index) {
+                                final gasto = gastos[index];
+                                final fecha = gasto.fechaGasto.toDate();
+                                final fechaFormateada =
+                                    "${fecha.day}/${fecha.month}/${fecha.year}";
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4.0,
+                                  ),
+                                  child: ListTile(
+                                    leading: const CircleAvatar(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      child: Icon(Icons.arrow_downward),
+                                    ),
+                                    title: Text(
+                                      '-\$${gasto.monto.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                    subtitle: Text('Fuente: ${gasto.fuente}'),
+                                    trailing: Text(
+                                      fechaFormateada,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddExpenseDialog(context),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+        tooltip: 'Registrar Gasto',
+        child: const Icon(Icons.remove),
+      ),
+    );
+  }
+
+  // Método para mostrar el diálogo de registro de gasto.
+  Future<void> _showAddExpenseDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final montoController = TextEditingController();
+    String? selectedFuente;
+    final List<String> fuentes = ['Efectivo', 'Tarjeta'];
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Registrar Gasto'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TextFormField(
+                      controller: montoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Monto del Gasto',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese el monto';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Por favor, ingrese un número válido';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedFuente,
+                      decoration: const InputDecoration(
+                        labelText: 'Fuente del Dinero',
+                        prefixIcon: Icon(Icons.source),
+                        border: OutlineInputBorder(),
+                      ),
+                      hint: const Text('Seleccione la fuente'),
+                      items: fuentes.map((String fuente) {
+                        return DropdownMenuItem<String>(
+                          value: fuente,
+                          child: Text(fuente),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setState(() => selectedFuente = newValue);
+                      },
+                      validator: (value) => value == null
+                          ? 'Por favor, seleccione una fuente'
+                          : null,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Guardar Gasto'),
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final gastoData = {
+                    'monto': double.parse(montoController.text),
+                    'fuente': selectedFuente!,
+                    'fechaGasto': Timestamp.now(),
+                  };
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('gastos')
+                        .add(gastoData);
+                    Navigator.of(dialogContext).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Gasto guardado correctamente.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error al guardar el gasto: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Widget reutilizable para mostrar una tarjeta de total.
+  Widget _buildTotalCard({
+    required String title,
+    required double amount,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            Icon(icon, size: 40, color: color),
+            const SizedBox(width: 20),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                ),
+                Text(
+                  '\$${amount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -147,6 +520,31 @@ class Alumno {
   }
 }
 
+// Modelo para los datos de un gasto.
+class Gasto {
+  final String id;
+  final double monto;
+  final String fuente; // 'Efectivo' o 'Tarjeta'
+  final Timestamp fechaGasto;
+
+  const Gasto({
+    required this.id,
+    required this.monto,
+    required this.fuente,
+    required this.fechaGasto,
+  });
+
+  factory Gasto.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Gasto(
+      id: doc.id,
+      monto: (data['monto'] as num).toDouble(),
+      fuente: data['fuente'] as String,
+      fechaGasto: data['fechaGasto'] as Timestamp,
+    );
+  }
+}
+
 // Modelo para los datos de un pago.
 class Pago {
   final String id;
@@ -154,6 +552,7 @@ class Pago {
   final double monto;
   final Timestamp fechaPago;
   final String metodoPago;
+  final String tipo; // 'total' o 'parcial'
 
   const Pago({
     required this.id,
@@ -161,6 +560,7 @@ class Pago {
     required this.monto,
     required this.fechaPago,
     required this.metodoPago,
+    required this.tipo,
   });
 
   factory Pago.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -171,6 +571,8 @@ class Pago {
       monto: (data['monto'] as num).toDouble(),
       fechaPago: data['fechaPago'] as Timestamp,
       metodoPago: data['metodoPago'] as String,
+      // Si el campo 'tipo' no existe en documentos antiguos, lo tratamos como 'total' para mantener la compatibilidad.
+      tipo: data['tipo'] as String? ?? 'total',
     );
   }
 }
@@ -218,7 +620,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    columnSpacing: 38.0,
+                    columnSpacing: 20.0,
                     columns: const [
                       DataColumn(
                         label: Text(
@@ -235,6 +637,12 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                       DataColumn(
                         label: Text(
                           'Grado',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Pagos',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -288,6 +696,23 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                 ),
                               );
                             },
+                          ),
+                          DataCell(
+                            IconButton(
+                              icon: const Icon(
+                                Icons.payment,
+                                color: Colors.amber,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        PagosScreen(alumno: alumno),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ],
                       );
@@ -433,36 +858,67 @@ class PagosScreen extends StatelessWidget {
             return const Center(child: Text('No se encontraron pagos.'));
           }
 
-          // Creamos un mapa de los pagos realizados para una búsqueda rápida.
-          final pagosRealizados = {
-            for (var doc in snapshot.data!.docs)
-              doc.data()['rubro'] as String: Pago.fromFirestore(doc),
-          };
+          // 1. Agrupamos todos los pagos por su rubro.
+          final Map<String, List<Pago>> pagosPorRubro = {};
+          for (var doc in snapshot.data!.docs) {
+            final pago = Pago.fromFirestore(doc);
+            pagosPorRubro.putIfAbsent(pago.rubro, () => []).add(pago);
+          }
+
+          // 2. Determinamos si un rubro está totalmente pagado.
+          final Map<String, bool> rubrosTotalmentePagados = {};
+          pagosPorRubro.forEach((rubro, pagos) {
+            // Un rubro se considera pagado si CUALQUIERA de sus pagos fue de tipo 'total'.
+            rubrosTotalmentePagados[rubro] = pagos.any(
+              (p) => p.tipo == 'total',
+            );
+          });
 
           return ListView.separated(
             itemCount: rubrosDePago.length,
             itemBuilder: (context, index) {
               final rubro = rubrosDePago[index];
-              final pago = pagosRealizados[rubro];
-              final isPagado = pago != null;
+              final pagosDeEsteRubro = pagosPorRubro[rubro] ?? [];
+              final isTotalmentePagado =
+                  rubrosTotalmentePagados[rubro] ?? false;
+              final tienePagosParciales =
+                  pagosDeEsteRubro.isNotEmpty && !isTotalmentePagado;
+
+              // Determinamos el estado para la UI
+              String estadoTexto;
+              Color estadoColor;
+              IconData estadoIcono;
+
+              if (isTotalmentePagado) {
+                estadoTexto = 'Pagado';
+                estadoColor = Colors.green;
+                estadoIcono = Icons.check_circle;
+              } else if (tienePagosParciales) {
+                estadoTexto = 'Parcial';
+                estadoColor = Colors.blue;
+                estadoIcono = Icons.hourglass_top_outlined;
+              } else {
+                estadoTexto = 'Pendiente';
+                estadoColor = Colors.orange;
+                estadoIcono = Icons.hourglass_empty;
+              }
 
               return ListTile(
-                leading: Icon(
-                  isPagado ? Icons.check_circle : Icons.hourglass_empty,
-                  color: isPagado ? Colors.green : Colors.orange,
-                ),
+                leading: Icon(estadoIcono, color: estadoColor),
                 title: Text(rubro),
                 trailing: Text(
-                  isPagado ? 'Pagado' : 'Pendiente',
+                  estadoTexto,
                   style: TextStyle(
-                    color: isPagado ? Colors.green : Colors.orange,
+                    color: estadoColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 onTap: () {
-                  if (isPagado) {
-                    _showPaymentDetailsDialog(context, pago);
+                  if (isTotalmentePagado) {
+                    // Si está totalmente pagado, mostramos el historial.
+                    _showPaymentHistoryDialog(context, rubro, pagosDeEsteRubro);
                   } else {
+                    // Si está pendiente o con pagos parciales, permitimos agregar otro pago.
                     _showAddPaymentDialog(context, rubro);
                   }
                 },
@@ -483,6 +939,7 @@ class PagosScreen extends StatelessWidget {
     DateTime? selectedDate;
     String? selectedMetodo;
     final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
+    bool esPagoTotal = false; // Nuevo estado para el switch
 
     return showDialog<void>(
       context: context,
@@ -572,6 +1029,21 @@ class PagosScreen extends StatelessWidget {
                             ? 'Por favor, seleccione un método'
                             : null,
                       ),
+                      const SizedBox(height: 16),
+                      // Switch para marcar si es pago total
+                      SwitchListTile(
+                        title: const Text('Pago Total'),
+                        subtitle: const Text(
+                          'Activa esto para liquidar el rubro.',
+                        ),
+                        value: esPagoTotal,
+                        onChanged: (bool value) {
+                          setState(() => esPagoTotal = value);
+                        },
+                        secondary: Icon(
+                          esPagoTotal ? Icons.lock : Icons.lock_open,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -595,6 +1067,7 @@ class PagosScreen extends StatelessWidget {
                     'monto': double.parse(montoController.text),
                     'fechaPago': Timestamp.fromDate(selectedDate!),
                     'metodoPago': selectedMetodo,
+                    'tipo': esPagoTotal ? 'total' : 'parcial',
                   };
 
                   try {
@@ -629,32 +1102,53 @@ class PagosScreen extends StatelessWidget {
     );
   }
 
-  // Método para mostrar los detalles de un pago ya realizado.
-  void _showPaymentDetailsDialog(BuildContext context, Pago pago) {
-    final fecha = pago.fechaPago.toDate();
-    final fechaFormateada = "${fecha.day}/${fecha.month}/${fecha.year}";
-
+  // Nuevo método para mostrar el historial de pagos de un rubro.
+  void _showPaymentHistoryDialog(
+    BuildContext context,
+    String rubro,
+    List<Pago> pagos,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Detalle del Pago: ${pago.rubro}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Monto: \$${pago.monto.toStringAsFixed(2)}'),
-              const SizedBox(height: 8),
-              Text('Fecha de Pago: $fechaFormateada'),
-              const SizedBox(height: 8),
-              Text('Método: ${pago.metodoPago}'),
-            ],
+          title: Text('Historial de Pagos: $rubro'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: pagos.length,
+              itemBuilder: (context, index) {
+                final pago = pagos[index];
+                final fecha = pago.fechaPago.toDate();
+                final fechaFormateada =
+                    "${fecha.day}/${fecha.month}/${fecha.year}";
+                return ListTile(
+                  title: Text(
+                    '\$${pago.monto.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('$fechaFormateada - ${pago.metodoPago}'),
+                  trailing: pago.tipo == 'total'
+                      ? Chip(
+                          label: const Text(
+                            'Total',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          backgroundColor: Colors.green[100],
+                          padding: EdgeInsets.zero,
+                        )
+                      : null,
+                );
+              },
+              separatorBuilder: (context, index) => const Divider(),
+            ),
           ),
           actions: [
             TextButton(
               child: const Text('Cerrar'),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Cierra el diálogo de historial
               },
             ),
           ],

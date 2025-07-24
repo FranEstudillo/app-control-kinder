@@ -24,7 +24,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true # Generar íconos para Android
   ios: true # Generar íconos para iOS
-  image_path: "lib/assets/icon/icono-app.png" # ¡IMPORTANTE! Reemplaza esto con la ruta a tu ícono
+  image_path: "lib/assets/icon/icono-app-sin-fondo.png" # ¡IMPORTANTE! Reemplaza esto con la ruta a tu ícono
 
 flutter:
   uses-material-design: true
