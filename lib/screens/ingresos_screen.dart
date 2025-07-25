@@ -1,341 +1,260 @@
 import 'package:flutter/material.dart';
-// Importamos firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Importamos los modelos de Pago y Gasto
 import '../models/pago.dart';
-import '../models/gasto.dart';
 
-// Pantalla de marcador de posición para la nueva funcionalidad de Ingresos.
-class IngresosScreen extends StatelessWidget {
+class IngresosScreen extends StatefulWidget {
   const IngresosScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ingresos'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-      // Usamos StreamBuilders anidados para obtener tanto los pagos como los gastos.
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collectionGroup('pagos').snapshots(),
-        builder: (context, pagosSnapshot) {
-          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('gastos').snapshots(),
-            builder: (context, gastosSnapshot) {
-              if (pagosSnapshot.connectionState == ConnectionState.waiting ||
-                  gastosSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+  State<IngresosScreen> createState() => _IngresosScreenState();
+}
 
-              if (pagosSnapshot.hasError) {
-                print('Error en la consulta de grupo: ${pagosSnapshot.error}');
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Error al cargar los ingresos. Es posible que necesites crear un índice en Firestore. Revisa la consola de depuración para ver un enlace de creación de índice.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              }
+class _IngresosScreenState extends State<IngresosScreen> {
+  String? _gradoSeleccionado;
+  final List<String> _grados = ['Maternal', 'Kinder 1', 'Kinder 2', 'Kinder 3'];
+  final List<String> _rubros = [
+    'Inscripción',
+    'Material Escolar',
+    'Libros',
+    'Uniforme',
+    'Bata',
+    // 'Colegiatura', // Excluido según tu requerimiento
+  ];
 
-              if (gastosSnapshot.hasError) {
-                return const Center(child: Text('Error al cargar los gastos.'));
-              }
-
-              // Calculamos los ingresos
-              double totalIngresos = 0;
-              double totalEfectivo = 0;
-              double totalTarjeta = 0;
-
-              if (pagosSnapshot.hasData) {
-                for (var doc in pagosSnapshot.data!.docs) {
-                  final pago = Pago.fromFirestore(doc);
-                  totalIngresos += pago.monto;
-                  if (pago.metodoPago == 'Efectivo') {
-                    totalEfectivo += pago.monto;
-                  } else if (pago.metodoPago == 'Tarjeta') {
-                    totalTarjeta += pago.monto;
-                  }
-                }
-              }
-
-              // Calculamos los gastos
-              double totalGastosEfectivo = 0;
-              double totalGastosTarjeta = 0;
-              final List<Gasto> gastos = [];
-
-              if (gastosSnapshot.hasData) {
-                for (var doc in gastosSnapshot.data!.docs) {
-                  final gasto = Gasto.fromFirestore(doc);
-                  gastos.add(
-                    gasto,
-                  ); // ¡Aquí estaba el error! Faltaba agregar el gasto a la lista.
-                  if (gasto.fuente == 'Efectivo') {
-                    totalGastosEfectivo += gasto.monto;
-                  } else if (gasto.fuente == 'Tarjeta') {
-                    totalGastosTarjeta += gasto.monto;
-                  }
-                }
-
-                // Ordenamos los gastos del más reciente al más antiguo
-                gastos.sort((a, b) => b.fechaGasto.compareTo(a.fechaGasto));
-              }
-
-              // Calculamos los saldos netos
-              final saldoTotal =
-                  totalIngresos - (totalGastosEfectivo + totalGastosTarjeta);
-              final saldoEfectivo = totalEfectivo - totalGastosEfectivo;
-              final saldoTarjeta = totalTarjeta - totalGastosTarjeta;
-
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  // Columna principal para organizar tarjetas e historial
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Contenedor para las tarjetas de saldo
-                    Column(
-                      children: [
-                        _buildTotalCard(
-                          title: 'Saldo Total',
-                          amount: saldoTotal,
-                          icon: Icons.account_balance_wallet,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTotalCard(
-                          title: 'Saldo en Efectivo',
-                          amount: saldoEfectivo,
-                          icon: Icons.money,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTotalCard(
-                          title: 'Saldo con Tarjeta',
-                          amount: saldoTarjeta,
-                          icon: Icons.credit_card,
-                          color: Colors.orange,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    // Título para el historial
-                    const Text(
-                      'Historial de Gastos',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Divider(height: 8),
-                    // Lista expandida para el historial
-                    Expanded(
-                      child: gastos.isEmpty
-                          ? const Center(
-                              child: Text('No hay gastos registrados.'),
-                            )
-                          : ListView.builder(
-                              itemCount: gastos.length,
-                              itemBuilder: (context, index) {
-                                final gasto = gastos[index];
-                                final fecha = gasto.fechaGasto.toDate();
-                                final fechaFormateada =
-                                    "${fecha.day}/${fecha.month}/${fecha.year}";
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(
-                                    vertical: 4.0,
-                                  ),
-                                  child: ListTile(
-                                    leading: const CircleAvatar(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                      child: Icon(Icons.arrow_downward),
-                                    ),
-                                    title: Text(
-                                      '-\$${gasto.monto.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                    subtitle: Text('Fuente: ${gasto.fuente}'),
-                                    trailing: Text(
-                                      fechaFormateada,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddExpenseDialog(context),
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        tooltip: 'Registrar Gasto',
-        child: const Icon(Icons.remove),
-      ),
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _seleccionarGrado(context),
     );
   }
 
-  // Método para mostrar el diálogo de registro de gasto.
-  Future<void> _showAddExpenseDialog(BuildContext context) async {
-    final formKey = GlobalKey<FormState>();
-    final montoController = TextEditingController();
-    String? selectedFuente;
-    final List<String> fuentes = ['Efectivo', 'Tarjeta'];
-
-    return showDialog<void>(
+  Future<void> _seleccionarGrado(BuildContext context) async {
+    final grado = await showDialog<String>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Registrar Gasto'),
-          content: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    TextFormField(
-                      controller: montoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Monto del Gasto',
-                        prefixIcon: Icon(Icons.attach_money),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingrese el monto';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Por favor, ingrese un número válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedFuente,
-                      decoration: const InputDecoration(
-                        labelText: 'Fuente del Dinero',
-                        prefixIcon: Icon(Icons.source),
-                        border: OutlineInputBorder(),
-                      ),
-                      hint: const Text('Seleccione la fuente'),
-                      items: fuentes.map((String fuente) {
-                        return DropdownMenuItem<String>(
-                          value: fuente,
-                          child: Text(fuente),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        setState(() => selectedFuente = newValue);
-                      },
-                      validator: (value) => value == null
-                          ? 'Por favor, seleccione una fuente'
-                          : null,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            ElevatedButton(
-              child: const Text('Guardar Gasto'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final gastoData = {
-                    'monto': double.parse(montoController.text),
-                    'fuente': selectedFuente!,
-                    'fechaGasto': Timestamp.now(),
-                  };
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('gastos')
-                        .add(gastoData);
-                    Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Gasto guardado correctamente.'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error al guardar el gasto: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Widget reutilizable para mostrar una tarjeta de total.
-  Widget _buildTotalCard({
-    required String title,
-    required double amount,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                ),
-                Text(
-                  '\$${amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ],
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Selecciona un grado'),
+        content: DropdownButtonFormField<String>(
+          value: _gradoSeleccionado,
+          items: _grados
+              .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+              .toList(),
+          onChanged: (value) {
+            setState(() => _gradoSeleccionado = value);
+            Navigator.of(context).pop(value);
+          },
+          decoration: const InputDecoration(labelText: 'Grado'),
         ),
       ),
+    );
+    if (grado != null) {
+      setState(() => _gradoSeleccionado = grado);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_gradoSeleccionado == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return DefaultTabController(
+      length: _rubros.length,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Ingresos - $_gradoSeleccionado'),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.filter_alt),
+              tooltip: 'Cambiar grado',
+              onPressed: () => _seleccionarGrado(context),
+            ),
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            tabs: _rubros.map((rubro) => Tab(text: rubro)).toList(),
+            labelColor: Colors.white, // Texto seleccionado en blanco
+            indicatorColor: Colors.white,
+            unselectedLabelColor:
+                Colors.white70, // Texto no seleccionado en blanco tenue
+          ),
+        ),
+        body: TabBarView(
+          children: _rubros.map((rubro) {
+            return _PagosPorRubro(grado: _gradoSeleccionado!, rubro: rubro);
+          }).toList(),
+        ),
+        floatingActionButton: Builder(
+          builder: (context) {
+            return FloatingActionButton(
+              onPressed: () {
+                final tabController = DefaultTabController.of(context);
+                if (tabController != null) {
+                  final rubroSeleccionado = _rubros[tabController.index];
+                  // Aquí puedes implementar la lógica para registrar un gasto.
+                  // Por ejemplo, navegar a una nueva pantalla:
+                  // Navigator.of(context).push(MaterialPageRoute(
+                  //   builder: (context) => RegistrarGastoScreen(rubro: rubroSeleccionado),
+                  // ));
+
+                  // Como ejemplo, mostramos un SnackBar.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Registrar gasto para: $rubroSeleccionado'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              tooltip: 'Registrar Gasto',
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.add, color: Colors.white),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PagosPorRubro extends StatelessWidget {
+  final String grado;
+  final String rubro;
+
+  const _PagosPorRubro({required this.grado, required this.rubro});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('alumnos')
+          .where('grado', isEqualTo: grado)
+          .snapshots(),
+      builder: (context, alumnosSnapshot) {
+        if (alumnosSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (alumnosSnapshot.hasError) {
+          return Center(child: Text('Error: ${alumnosSnapshot.error}'));
+        }
+        final alumnos = alumnosSnapshot.data?.docs ?? [];
+        if (alumnos.isEmpty) {
+          return const Center(child: Text('No hay alumnos en este grado.'));
+        }
+        final alumnoIds = alumnos.map((doc) => doc.id).toList();
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collectionGroup('pagos')
+              .where('rubro', isEqualTo: rubro)
+              .snapshots(),
+          builder: (context, pagosSnapshot) {
+            if (pagosSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (pagosSnapshot.hasError) {
+              return Center(child: Text('Error: ${pagosSnapshot.error}'));
+            }
+
+            double total = 0;
+            final pagos = <Pago>[];
+
+            if (pagosSnapshot.hasData) {
+              for (var doc in pagosSnapshot.data!.docs) {
+                final parent = doc.reference.parent.parent;
+                if (parent != null && alumnoIds.contains(parent.id)) {
+                  final pago = Pago.fromFirestore(doc);
+                  pagos.add(pago);
+                  total += pago.monto;
+                }
+              }
+            }
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView(
+                children: [
+                  Card(
+                    color: Colors.green[50],
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.attach_money,
+                        color: Colors.green,
+                      ),
+                      title: Text('Total de pagos en "$rubro"'),
+                      trailing: Text(
+                        '\$${total.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Card(
+                    color: Colors.orange[50],
+                    child: ListTile(
+                      leading: const Icon(Icons.payments, color: Colors.orange),
+                      title: const Text('Total en efectivo'),
+                      trailing: Text(
+                        '\$${pagos.where((p) => p.metodoPago == "Efectivo").fold<double>(0, (s, p) => s + p.monto).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Card(
+                    color: Colors.blue[50],
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.credit_card,
+                        color: Colors.blue,
+                      ),
+                      title: const Text('Total en tarjeta'),
+                      trailing: Text(
+                        '\$${pagos.where((p) => p.metodoPago == "Tarjeta").fold<double>(0, (s, p) => s + p.monto).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (pagos.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text(
+                          'No hay pagos registrados para este rubro.',
+                        ),
+                      ),
+                    )
+                  else
+                    ...pagos.map((pago) {
+                      final fecha = pago.fechaPago.toDate();
+                      final fechaFormateada =
+                          "${fecha.day}/${fecha.month}/${fecha.year}";
+                      return Card(
+                        child: ListTile(
+                          title: Text('\$${pago.monto.toStringAsFixed(2)}'),
+                          subtitle: Text(
+                            '$fechaFormateada - ${pago.metodoPago}',
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
