@@ -5,7 +5,7 @@ import 'package:app_control_kinder_v4/models/alumno.dart';
 import 'package:app_control_kinder_v4/screens/pagos_screen.dart';
 //firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+//import 'package:firebase_storage/firebase_storage.dart';
 
 // 2. Creamos la nueva pantalla para mostrar los detalles del alumno.
 class AlumnoDetalleScreen extends StatefulWidget {
