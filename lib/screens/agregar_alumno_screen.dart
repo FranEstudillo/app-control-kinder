@@ -18,7 +18,7 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
   String? _selectedGrado;
-  final List<String> _grados = ['Maternal', 'Kinder 1', 'Kinder 2', 'Kinder 3'];
+  final List<String> _grados = ['Maternal', 'Kínder 1', 'Kínder 2', 'Kínder 3'];
   File? _imageFile; // Variable para guardar la foto seleccionada
   bool _isPickerActive = false; // Flag para evitar múltiples llamadas al picker
 

@@ -11,7 +11,7 @@ class IngresosScreen extends StatefulWidget {
 
 class _IngresosScreenState extends State<IngresosScreen> {
   String? _gradoSeleccionado;
-  final List<String> _grados = ['Maternal', 'Kinder 1', 'Kinder 2', 'Kinder 3'];
+  final List<String> _grados = ['Maternal', 'Kínder 1', 'Kínder 2', 'Kínder 3'];
   final List<String> _rubros = [
     'Inscripción',
     'Material Escolar',

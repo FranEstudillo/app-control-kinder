@@ -14,6 +14,20 @@ class Alumno {
     this.fotoUrl,
     this.id,
   });
+  // ✅ AGREGA ESTE MÉTODO COMPLETO
+  Alumno copyWith({
+    String? id,
+    String? nombre,
+    String? grado,
+    // String? fotoUrl,
+  }) {
+    return Alumno(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      grado: grado ?? this.grado,
+      // fotoUrl: fotoUrl ?? this.fotoUrl,
+    );
+  }
 
   // Convierte un objeto Alumno a un Map para Firestore
   Map<String, dynamic> toJson() {

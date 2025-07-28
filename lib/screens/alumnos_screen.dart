@@ -101,7 +101,15 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   builder: (context) =>
                                       AlumnoDetalleScreen(alumno: alumno),
                                 ),
-                              );
+                              ).then((huboCambios) {
+                                // ✅ Añade este bloque .then()
+                                // Si la pantalla de detalle devolvió 'true'...
+                                if (huboCambios == true) {
+                                  // ...le decimos a esta pantalla que se refresque para cargar los nuevos totales.
+                                  setState(() {});
+                                }
+                              });
+                              ;
                             },
                           ),
                           DataCell(
@@ -113,7 +121,15 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   builder: (context) =>
                                       AlumnoDetalleScreen(alumno: alumno),
                                 ),
-                              );
+                              ).then((huboCambios) {
+                                // ✅ Añade este bloque .then()
+                                // Si la pantalla de detalle devolvió 'true'...
+                                if (huboCambios == true) {
+                                  // ...le decimos a esta pantalla que se refresque para cargar los nuevos totales.
+                                  setState(() {});
+                                }
+                              });
+                              ;
                             },
                           ),
                           DataCell(
@@ -125,7 +141,15 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   builder: (context) =>
                                       AlumnoDetalleScreen(alumno: alumno),
                                 ),
-                              );
+                              ).then((huboCambios) {
+                                // ✅ Añade este bloque .then()
+                                // Si la pantalla de detalle devolvió 'true'...
+                                if (huboCambios == true) {
+                                  // ...le decimos a esta pantalla que se refresque para cargar los nuevos totales.
+                                  setState(() {});
+                                }
+                              });
+                              ;
                             },
                           ),
                           DataCell(
@@ -141,7 +165,15 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                     builder: (context) =>
                                         PagosScreen(alumno: alumno),
                                   ),
-                                );
+                                ).then((huboCambios) {
+                                  // ✅ Añade este bloque .then()
+                                  // Si la pantalla de detalle devolvió 'true'...
+                                  if (huboCambios == true) {
+                                    // ...le decimos a esta pantalla que se refresque para cargar los nuevos totales.
+                                    setState(() {});
+                                  }
+                                });
+                                ;
                               },
                             ),
                           ),
