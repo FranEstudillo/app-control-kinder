@@ -1,26 +1,31 @@
+// lib/models/gasto.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Modelo para los datos de un gasto.
 class Gasto {
-  final String id;
+  final String? id;
   final double monto;
   final String fuente; // 'Efectivo' o 'Tarjeta'
-  final Timestamp fechaGasto;
+  final String rubro;
+  final String grado;
+  final Timestamp fecha;
 
-  const Gasto({
-    required this.id,
+  Gasto({
+    this.id,
     required this.monto,
     required this.fuente,
-    required this.fechaGasto,
+    required this.rubro,
+    required this.grado,
+    required this.fecha,
   });
 
-  factory Gasto.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
-    return Gasto(
-      id: doc.id,
-      monto: (data['monto'] as num).toDouble(),
-      fuente: data['fuente'] as String,
-      fechaGasto: data['fechaGasto'] as Timestamp,
-    );
+  // Método para convertir el objeto a un mapa que Firestore entiende
+  Map<String, dynamic> toJson() {
+    return {
+      'monto': monto,
+      'fuente': fuente,
+      'rubro': rubro,
+      'grado': grado,
+      'fecha': fecha,
+    };
   }
 }
