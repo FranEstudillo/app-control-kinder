@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'ingresos_screen.dart';
 import 'alumnos_screen.dart';
-
+import 'colegiaturas_screen.dart'; // Importa el nuevo widget ColegiaturasScreen
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -20,7 +20,7 @@ class HomeScreen extends StatelessWidget {
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.home), text: 'Home'),
-              Tab(icon: Icon(Icons.settings), text: 'Opciones'),
+              Tab(icon: Icon(Icons.settings), text: 'Configuraciones'),
             ],
             indicatorColor: Colors.white,
             labelColor: Colors.white,
@@ -34,6 +34,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisSpacing: 16.0,
               mainAxisSpacing: 16.0,
               children: <Widget>[
+                // Este es el boton de alumnos
                 InkWell(
                   onTap: () {
                     Navigator.push(
@@ -74,6 +75,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                // este es el boton de ingresos
                 InkWell(
                   onTap: () {
                     Navigator.push(
@@ -114,8 +116,51 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Este es el nuevo botón de colegiaturas
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ColegiaturasScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Card(
+                    elevation: 4.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.blue,
+                          child: Icon(
+                            Icons.school, // Ícono representativo
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Colegiaturas',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // --- FIN DEL WIDGET AÑADIDO ---
               ],
             ),
+
             const Center(child: Text("Settings Screen")),
           ],
         ),
