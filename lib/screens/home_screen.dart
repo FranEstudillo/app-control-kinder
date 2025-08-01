@@ -1,3 +1,4 @@
+import 'package:app_control_kinder_v4/screens/precios_screen.dart';
 import 'package:flutter/material.dart';
 import 'ingresos_screen.dart';
 import 'alumnos_screen.dart';
@@ -21,6 +22,7 @@ class HomeScreen extends StatelessWidget {
             tabs: [
               Tab(icon: Icon(Icons.home), text: 'Home'),
               Tab(icon: Icon(Icons.settings), text: 'Configuraciones'),
+              //Tab(icon: Icon(Icons.settings), text: 'Aux'),
             ],
             indicatorColor: Colors.white,
             labelColor: Colors.white,
@@ -161,7 +163,57 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
 
-            const Center(child: Text("Settings Screen")),
+            GridView.count(
+              crossAxisCount: 2,
+              padding: const EdgeInsets.all(16.0),
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: <Widget>[
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const PreciosScreen(), //aqui va la el acceso a la clase de configuraciones
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Card(
+                    elevation: 4.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.pinkAccent,
+                          child: Icon(
+                            Icons.list_alt, // Ícono representativo
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Precios',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // const Center(child: Text("Settings Screen")),
           ],
         ),
       ),
