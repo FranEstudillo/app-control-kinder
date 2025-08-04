@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-//modelos
-import 'package:app_control_kinder_v4/models/alumno.dart';
-import 'package:app_control_kinder_v4/models/pago.dart';
-//firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/alumno.dart';
+import '../models/pago.dart';
 
-// Nueva pantalla para mostrar los rubros de pago de un alumno.
 class PagosScreen extends StatefulWidget {
   final Alumno alumno;
-
   const PagosScreen({super.key, required this.alumno});
 
   @override
@@ -16,226 +12,305 @@ class PagosScreen extends StatefulWidget {
 }
 
 class _PagosScreenState extends State<PagosScreen> {
+  late Alumno alumnoActual;
+
   @override
-  Widget build(BuildContext context) {
-    // Lista de los rubros de pago.
-    final List<String> rubrosDePago = [
-      'Inscripción',
-      'Material Escolar',
-      'Libros',
-      'Uniforme',
-      'Bata',
-      'Colegiatura',
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Pagos de ${widget.alumno.nombre}'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('alumnos')
-            .doc(widget.alumno.id)
-            .collection('pagos')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar los pagos.'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No se encontraron pagos.'));
-          }
-
-          // 1. Agrupamos todos los pagos por su rubro.
-          final Map<String, List<Pago>> pagosPorRubro = {};
-          for (var doc in snapshot.data!.docs) {
-            final pago = Pago.fromFirestore(doc);
-            pagosPorRubro.putIfAbsent(pago.rubro, () => []).add(pago);
-          }
-
-          // 2. Determinamos si un rubro está totalmente pagado.
-          final Map<String, bool> rubrosTotalmentePagados = {};
-          pagosPorRubro.forEach((rubro, pagos) {
-            // Un rubro se considera pagado si CUALQUIERA de sus pagos fue de tipo 'total'.
-            rubrosTotalmentePagados[rubro] = pagos.any(
-              (p) => p.tipo == 'total',
-            );
-          });
-
-          return ListView.separated(
-            itemCount: rubrosDePago.length,
-            itemBuilder: (context, index) {
-              final rubro = rubrosDePago[index];
-              final pagosDeEsteRubro = pagosPorRubro[rubro] ?? [];
-              final isTotalmentePagado =
-                  rubrosTotalmentePagados[rubro] ?? false;
-              final tienePagosParciales =
-                  pagosDeEsteRubro.isNotEmpty && !isTotalmentePagado;
-
-              // Determinamos el estado para la UI
-              String estadoTexto;
-              Color estadoColor;
-              IconData estadoIcono;
-
-              if (isTotalmentePagado) {
-                estadoTexto = 'Pagado';
-                estadoColor = Colors.green;
-                estadoIcono = Icons.check_circle;
-              } else if (tienePagosParciales) {
-                estadoTexto = 'Parcial';
-                estadoColor = Colors.blue;
-                estadoIcono = Icons.hourglass_top_outlined;
-              } else {
-                estadoTexto = 'Pendiente';
-                estadoColor = Colors.orange;
-                estadoIcono = Icons.hourglass_empty;
-              }
-
-              return ListTile(
-                leading: Icon(estadoIcono, color: estadoColor),
-                title: Text(rubro),
-                trailing: Text(
-                  estadoTexto,
-                  style: TextStyle(
-                    color: estadoColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                onTap: () {
-                  if (isTotalmentePagado) {
-                    // Si está totalmente pagado, mostramos el historial.
-                    _showPaymentHistoryDialog(context, rubro, pagosDeEsteRubro);
-                  } else {
-                    // Si está pendiente o con pagos parciales, permitimos agregar otro pago.
-                    _showAddPaymentDialog(context, rubro);
-                  }
-                },
-              );
-            },
-            separatorBuilder: (context, index) => const Divider(height: 1),
-          );
-        },
-      ),
-    );
+  void initState() {
+    super.initState();
+    alumnoActual = widget.alumno;
   }
 
-  // Método para mostrar el diálogo de registro de pago.
-  Future<void> _showAddPaymentDialog(BuildContext context, String rubro) async {
+  final List<String> rubrosDePago = [
+    'Inscripción',
+    'Material Escolar',
+    'Libros',
+    'Uniforme',
+    'Bata',
+  ];
+
+  // --- FUNCIÓN PARA ASIGNAR/EDITAR PIEZAS DE UNIFORME ---
+  Future<void> _showAssignUniformeDialog(
+    BuildContext context,
+    Map<String, dynamic> componentes,
+  ) async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    Map<String, int> piezasAsignadas = (alumnoActual.piezasUniforme ?? {}).map(
+      (key, value) => MapEntry(key, value as int),
+    );
+    componentes.keys.forEach((pieza) {
+      piezasAsignadas.putIfAbsent(pieza, () => 0);
+    });
+
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Asignar/Editar Piezas'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...componentes.keys.map((pieza) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('$pieza (\$${componentes[pieza]})'),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    if (piezasAsignadas[pieza]! > 0) {
+                                      piezasAsignadas[pieza] =
+                                          piezasAsignadas[pieza]! - 1;
+                                    }
+                                  });
+                                },
+                              ),
+                              Text(piezasAsignadas[pieza].toString()),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    piezasAsignadas[pieza] =
+                                        (piezasAsignadas[pieza] ?? 0) + 1;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                    const Divider(),
+                    ElevatedButton(
+                      child: const Text('Asignar Uniforme Completo'),
+                      onPressed: () {
+                        setDialogState(() {
+                          componentes.keys.forEach(
+                            (pieza) => piezasAsignadas[pieza] = 1,
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancelar'),
+                  onPressed: () => navigator.pop(),
+                ),
+                ElevatedButton(
+                  child: const Text('Guardar Cambios'),
+                  onPressed: () => navigator.pop(piezasAsignadas),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('alumnos')
+            .doc(alumnoActual.id)
+            .update({'piezasUniforme': result});
+        setState(() {
+          alumnoActual = alumnoActual.copyWith(piezasUniforme: result);
+        });
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Piezas actualizadas.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  // --- FUNCIÓN PARA PAGAR UNIFORME Y AÑADIR PIEZAS (CORREGIDA) ---
+  Future<void> _showUniformPaymentDialog(
+    BuildContext context,
+    Map<String, dynamic> componentes,
+    List<Pago> pagosPrevios,
+  ) async {
     final formKey = GlobalKey<FormState>();
     final montoController = TextEditingController();
     final fechaController = TextEditingController();
     DateTime? selectedDate;
     String? selectedMetodo;
     final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
-    bool esPagoTotal = false; // Nuevo estado para el switch
+
+    Map<String, int> piezasNuevas = {};
+    componentes.keys.forEach((pieza) => piezasNuevas[pieza] = 0);
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // Calculamos la deuda actual para mostrarla
+    double deudaTotal = 0;
+    (alumnoActual.piezasUniforme ?? {}).forEach((pieza, cantidad) {
+      deudaTotal += (componentes[pieza] as num? ?? 0) * (cantidad as int);
+    });
+    final totalPagado = pagosPrevios.fold(0.0, (sum, p) => sum + p.monto);
+    final restanteActual = deudaTotal - totalPagado;
+
+    // Sugerimos pagar el restante
+    montoController.text = restanteActual > 0
+        ? restanteActual.toStringAsFixed(2)
+        : "0.00";
+
+    void _recalcularMontoAPagar() {
+      double totalPiezasNuevas = 0;
+      piezasNuevas.forEach((pieza, cantidad) {
+        if (cantidad > 0)
+          totalPiezasNuevas += (componentes[pieza] as num) * cantidad;
+      });
+      // El monto a pagar es el restante MÁS las nuevas piezas
+      montoController.text = (restanteActual + totalPiezasNuevas)
+          .toStringAsFixed(2);
+    }
 
     return showDialog<void>(
       context: context,
-      builder: (BuildContext dialogContext) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: Text('Registrar Pago: $rubro'),
+          title: const Text('Registrar Pago de Uniforme'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return Form(
                 key: formKey,
                 child: SingleChildScrollView(
-                  // Para evitar desbordamiento si aparece el teclado.
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      // Resumen de la deuda
+                      ListTile(
+                        title: const Text('Deuda Actual (Restante)'),
+                        trailing: Text(
+                          '\$${restanteActual.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const Divider(),
+
+                      // Sección para añadir nuevas piezas
+                      ExpansionTile(
+                        title: const Text('Añadir Piezas Extra'),
+                        children: [
+                          ...componentes.keys.map((pieza) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('$pieza (\$${componentes[pieza]})'),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                      ),
+                                      onPressed: () => setState(() {
+                                        if (piezasNuevas[pieza]! > 0)
+                                          piezasNuevas[pieza] =
+                                              piezasNuevas[pieza]! - 1;
+                                        _recalcularMontoAPagar();
+                                      }),
+                                    ),
+                                    Text(piezasNuevas[pieza].toString()),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.add_circle_outline,
+                                      ),
+                                      onPressed: () => setState(() {
+                                        piezasNuevas[pieza] =
+                                            piezasNuevas[pieza]! + 1;
+                                        _recalcularMontoAPagar();
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                      const Divider(),
+
+                      // Campos del pago
                       TextFormField(
                         controller: montoController,
                         decoration: const InputDecoration(
-                          labelText: 'Monto',
-                          prefixIcon: Icon(Icons.attach_money),
+                          labelText: 'Monto a Pagar',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, ingrese el monto';
-                          }
-                          if (double.tryParse(value) == null) {
-                            return 'Por favor, ingrese un número válido';
-                          }
-                          return null;
-                        },
+                        validator: (v) =>
+                            (v == null ||
+                                v.isEmpty ||
+                                double.tryParse(v) == null)
+                            ? 'Monto inválido'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: fechaController,
                         decoration: const InputDecoration(
                           labelText: 'Fecha de Pago',
-                          prefixIcon: Icon(Icons.calendar_today),
                           border: OutlineInputBorder(),
                         ),
                         readOnly: true,
                         onTap: () async {
-                          final DateTime? picked = await showDatePicker(
+                          final picked = await showDatePicker(
                             context: context,
-                            initialDate: selectedDate ?? DateTime.now(),
+                            initialDate: DateTime.now(),
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2101),
                           );
-                          if (picked != null && picked != selectedDate) {
+                          if (picked != null) {
                             setState(() {
                               selectedDate = picked;
-                              // Para un formato más amigable, se puede usar el paquete 'intl'.
                               fechaController.text =
                                   "${picked.day}/${picked.month}/${picked.year}";
                             });
                           }
                         },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, seleccione una fecha';
-                          }
-                          return null;
-                        },
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Seleccione una fecha'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: selectedMetodo,
                         decoration: const InputDecoration(
                           labelText: 'Método de Pago',
-                          prefixIcon: Icon(Icons.credit_card),
                           border: OutlineInputBorder(),
                         ),
-                        hint: const Text('Seleccione un método'),
-                        items: metodosDePago.map((String metodo) {
-                          return DropdownMenuItem<String>(
-                            value: metodo,
-                            child: Text(metodo),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() => selectedMetodo = newValue);
-                        },
-                        validator: (value) => value == null
-                            ? 'Por favor, seleccione un método'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      // Switch para marcar si es pago total
-                      SwitchListTile(
-                        title: const Text('Pago Total'),
-                        subtitle: const Text(
-                          'Activa esto para liquidar el rubro.',
-                        ),
-                        value: esPagoTotal,
-                        onChanged: (bool value) {
-                          setState(() => esPagoTotal = value);
-                        },
-                        secondary: Icon(
-                          esPagoTotal ? Icons.lock : Icons.lock_open,
-                        ),
+                        items: metodosDePago
+                            .map(
+                              (m) => DropdownMenuItem<String>(
+                                value: m,
+                                child: Text(m),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (newValue) =>
+                            setState(() => selectedMetodo = newValue),
+                        validator: (v) =>
+                            v == null ? 'Seleccione un método' : null,
                       ),
                     ],
                   ),
@@ -246,42 +321,67 @@ class _PagosScreenState extends State<PagosScreen> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              onPressed: () => navigator.pop(),
             ),
             ElevatedButton(
-              child: const Text('Guardar'),
+              child: const Text('Guardar Pago'),
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  // 1. Preparamos los datos para Firestore.
-                  final pagoData = {
-                    'rubro': rubro,
-                    'monto': double.parse(montoController.text),
-                    'fechaPago': Timestamp.fromDate(selectedDate!),
-                    'metodoPago': selectedMetodo,
-                    'tipo': esPagoTotal ? 'total' : 'parcial',
-                  };
+                  final montoPagado = double.tryParse(montoController.text);
+                  if (montoPagado == null) return;
+
+                  final piezasCompradasEnEstaTransaccion = <String, int>{};
+                  piezasNuevas.forEach((pieza, cantidad) {
+                    if (cantidad > 0)
+                      piezasCompradasEnEstaTransaccion[pieza] = cantidad;
+                  });
 
                   try {
-                    // 2. Guardamos el nuevo documento en la subcolección 'pagos' del alumno.
-                    await FirebaseFirestore.instance
-                        .collection('alumnos')
-                        .doc(widget.alumno.id)
-                        .collection('pagos')
-                        .add(pagoData);
+                    if (piezasCompradasEnEstaTransaccion.isNotEmpty) {
+                      Map<String, int> piezasActualizadas =
+                          Map<String, int>.from(
+                            alumnoActual.piezasUniforme ?? {},
+                          );
+                      piezasCompradasEnEstaTransaccion.forEach((
+                        pieza,
+                        cantidad,
+                      ) {
+                        piezasActualizadas[pieza] =
+                            (piezasActualizadas[pieza] ?? 0) + cantidad;
+                      });
+                      await FirebaseFirestore.instance
+                          .collection('alumnos')
+                          .doc(alumnoActual.id)
+                          .update({'piezasUniforme': piezasActualizadas});
+                    }
 
-                    Navigator.of(dialogContext).pop(); // Cerramos el diálogo
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (montoPagado > 0) {
+                      final pagoData = {
+                        'rubro': 'Uniforme',
+                        'monto': montoPagado,
+                        'fechaPago': Timestamp.fromDate(selectedDate!),
+                        'metodoPago': selectedMetodo,
+                        'tipo': 'parcial',
+                        'piezas': piezasCompradasEnEstaTransaccion,
+                      };
+                      await FirebaseFirestore.instance
+                          .collection('alumnos')
+                          .doc(widget.alumno.id)
+                          .collection('pagos')
+                          .add(pagoData);
+                    }
+
+                    navigator.pop();
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
-                        content: Text('Pago guardado correctamente.'),
+                        content: Text('Operación guardada.'),
                         backgroundColor: Colors.green,
                       ),
                     );
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text('Error al guardar el pago: $e'),
+                        content: Text('Error al guardar: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -295,15 +395,233 @@ class _PagosScreenState extends State<PagosScreen> {
     );
   }
 
-  // Nuevo método para mostrar el historial de pagos de un rubro.
+  // --- FUNCIÓN PARA PAGAR BATAS ---
+  Future<void> _showAddPaymentDialog(
+    BuildContext context,
+    String rubro,
+    dynamic precioData,
+    List<Pago> pagosDeEsteRubro,
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    final montoController = TextEditingController();
+    final fechaController = TextEditingController();
+    DateTime? selectedDate;
+    String? selectedMetodo;
+    final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
+    bool esPagoTotal = false;
+
+    // Lógica para pre-llenar el monto restante en Batas
+    if (rubro == 'Bata' && alumnoActual.tallaBata != null) {
+      final preciosPorTalla = Map<String, dynamic>.from(
+        precioData['preciosPorTalla'],
+      );
+      final talla = alumnoActual.tallaBata!;
+      final totalPagado = pagosDeEsteRubro.fold(
+        0.0,
+        (sum, pago) => sum + pago.monto,
+      );
+      final precioTotal = (preciosPorTalla[talla] as num?)?.toDouble() ?? 0.0;
+      final restante = precioTotal - totalPagado;
+      montoController.text = restante > 0
+          ? restante.toStringAsFixed(2)
+          : '0.00';
+    }
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Registrar Pago: $rubro'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      TextFormField(
+                        controller: montoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Monto',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (v) =>
+                            (v == null ||
+                                v.isEmpty ||
+                                double.tryParse(v) == null)
+                            ? 'Monto inválido'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: fechaController,
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de Pago',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2101),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              selectedDate = picked;
+                              fechaController.text =
+                                  "${picked.day}/${picked.month}/${picked.year}";
+                            });
+                          }
+                        },
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Seleccione una fecha'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedMetodo,
+                        decoration: const InputDecoration(
+                          labelText: 'Método de Pago',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: metodosDePago
+                            .map(
+                              (m) => DropdownMenuItem<String>(
+                                value: m,
+                                child: Text(m),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (newValue) =>
+                            setState(() => selectedMetodo = newValue),
+                        validator: (v) =>
+                            v == null ? 'Seleccione un método' : null,
+                      ),
+                      SwitchListTile(
+                        title: const Text('Pago Total'),
+                        value: esPagoTotal,
+                        onChanged: (bool value) =>
+                            setState(() => esPagoTotal = value),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Guardar'),
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final pagoData = {
+                    'rubro': rubro,
+                    'monto': double.parse(montoController.text),
+                    'fechaPago': Timestamp.fromDate(selectedDate!),
+                    'metodoPago': selectedMetodo,
+                    'tipo': esPagoTotal ? 'total' : 'parcial',
+                    if (rubro == 'Bata') 'talla': alumnoActual.tallaBata,
+                  };
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('alumnos')
+                        .doc(widget.alumno.id)
+                        .collection('pagos')
+                        .add(pagoData);
+                    Navigator.of(dialogContext).pop();
+                  } catch (e) {
+                    /* Manejar error */
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showAssignBataDialog(
+    BuildContext context,
+    Map<String, dynamic> preciosPorTalla,
+  ) async {
+    String? tallaSeleccionada;
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Asignar Talla de Bata'),
+          content: DropdownButtonFormField<String>(
+            hint: const Text('Seleccione una talla'),
+            items: preciosPorTalla.keys.map((String talla) {
+              return DropdownMenuItem<String>(
+                value: talla,
+                child: Text('$talla - \$${preciosPorTalla[talla]}'),
+              );
+            }).toList(),
+            onChanged: (newValue) => tallaSeleccionada = newValue,
+            validator: (value) => value == null ? 'Seleccione una talla' : null,
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => navigator.pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Asignar'),
+              onPressed: () {
+                if (tallaSeleccionada != null) navigator.pop(tallaSeleccionada);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('alumnos')
+            .doc(alumnoActual.id)
+            .update({'tallaBata': result});
+        setState(() {
+          alumnoActual = alumnoActual.copyWith(tallaBata: result);
+        });
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Talla asignada.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error al asignar talla: $e')),
+        );
+      }
+    }
+  }
+
   void _showPaymentHistoryDialog(
     BuildContext context,
     String rubro,
     List<Pago> pagos,
   ) {
     showDialog(
-      context: context, // Este es el context del Scaffold
-      builder: (BuildContext context) {
+      context: context,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text('Historial de Pagos: $rubro'),
           content: SizedBox(
@@ -327,28 +645,22 @@ class _PagosScreenState extends State<PagosScreen> {
                     children: [
                       if (pago.tipo == 'total')
                         Chip(
-                          label: const Text(
-                            'Total',
-                            style: TextStyle(fontSize: 12),
-                          ),
+                          label: const Text('Total'),
                           backgroundColor: Colors.green[100],
-                          padding: EdgeInsets.zero,
                         ),
-                      const SizedBox(width: 8),
-                      // --- INICIO DEL CAMBIO ---
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blueAccent),
                         onPressed: () {
-                          // Cerramos el historial para abrir el de edición
-                          Navigator.of(context).pop();
+                          Navigator.of(
+                            dialogContext,
+                          ).pop(); // Cierra el historial
                           _showEditPaymentDialog(
-                            this.context,
+                            context,
                             pago,
-                          ); // Usamos el context del State
+                          ); // Abre el de edición
                         },
                         tooltip: 'Editar Pago',
                       ),
-                      // --- FIN DEL CAMBIO ---
                     ],
                   ),
                 );
@@ -359,9 +671,7 @@ class _PagosScreenState extends State<PagosScreen> {
           actions: [
             TextButton(
               child: const Text('Cerrar'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo de historial
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
         );
@@ -369,10 +679,8 @@ class _PagosScreenState extends State<PagosScreen> {
     );
   }
 
-  // Método para mostrar el diálogo de edición de pago.
   Future<void> _showEditPaymentDialog(BuildContext context, Pago pago) async {
     final formKey = GlobalKey<FormState>();
-    // Precargamos los datos del pago existente
     final montoController = TextEditingController(
       text: pago.monto.toStringAsFixed(2),
     );
@@ -382,8 +690,9 @@ class _PagosScreenState extends State<PagosScreen> {
         "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}";
     String? selectedMetodo = pago.metodoPago;
     bool esPagoTotal = pago.tipo == 'total';
-
     final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     return showDialog<void>(
       context: context,
@@ -402,39 +711,34 @@ class _PagosScreenState extends State<PagosScreen> {
                         controller: montoController,
                         decoration: const InputDecoration(
                           labelText: 'Monto',
-                          prefixIcon: Icon(Icons.attach_money),
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, ingrese el monto';
-                          }
-                          if (double.tryParse(value) == null) {
-                            return 'Por favor, ingrese un número válido';
-                          }
-                          return null;
-                        },
+                        validator: (v) =>
+                            (v == null ||
+                                v.isEmpty ||
+                                double.tryParse(v) == null)
+                            ? 'Monto inválido'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: fechaController,
                         decoration: const InputDecoration(
                           labelText: 'Fecha de Pago',
-                          prefixIcon: Icon(Icons.calendar_today),
                           border: OutlineInputBorder(),
                         ),
                         readOnly: true,
                         onTap: () async {
-                          final DateTime? picked = await showDatePicker(
+                          final picked = await showDatePicker(
                             context: context,
                             initialDate: selectedDate,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2101),
                           );
-                          if (picked != null && picked != selectedDate) {
+                          if (picked != null) {
                             setState(() {
                               selectedDate = picked;
                               fechaController.text =
@@ -448,29 +752,24 @@ class _PagosScreenState extends State<PagosScreen> {
                         value: selectedMetodo,
                         decoration: const InputDecoration(
                           labelText: 'Método de Pago',
-                          prefixIcon: Icon(Icons.credit_card),
                           border: OutlineInputBorder(),
                         ),
-                        items: metodosDePago.map((String metodo) {
-                          return DropdownMenuItem<String>(
-                            value: metodo,
-                            child: Text(metodo),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() => selectedMetodo = newValue);
-                        },
+                        items: metodosDePago
+                            .map(
+                              (m) => DropdownMenuItem<String>(
+                                value: m,
+                                child: Text(m),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (newValue) =>
+                            setState(() => selectedMetodo = newValue),
                       ),
-                      const SizedBox(height: 16),
                       SwitchListTile(
                         title: const Text('Pago Total'),
                         value: esPagoTotal,
-                        onChanged: (bool value) {
-                          setState(() => esPagoTotal = value);
-                        },
-                        secondary: Icon(
-                          esPagoTotal ? Icons.lock : Icons.lock_open,
-                        ),
+                        onChanged: (bool value) =>
+                            setState(() => esPagoTotal = value),
                       ),
                     ],
                   ),
@@ -481,7 +780,7 @@ class _PagosScreenState extends State<PagosScreen> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              onPressed: () => navigator.pop(),
             ),
             ElevatedButton(
               child: const Text('Guardar Cambios'),
@@ -500,15 +799,15 @@ class _PagosScreenState extends State<PagosScreen> {
                         .collection('pagos')
                         .doc(pago.id)
                         .update(updatedData);
-                    Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    navigator.pop();
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
-                        content: Text('Pago actualizado correctamente.'),
+                        content: Text('Pago actualizado.'),
                         backgroundColor: Colors.blue,
                       ),
                     );
                   } catch (e) {
-                    // Manejo de errores
+                    /* Manejar error */
                   }
                 }
               },
@@ -516,6 +815,203 @@ class _PagosScreenState extends State<PagosScreen> {
           ],
         );
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Pagos de ${alumnoActual.nombre}'),
+        backgroundColor: Colors.amber,
+        foregroundColor: Colors.white,
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('alumnos')
+            .doc(alumnoActual.id)
+            .collection('pagos')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
+
+          final Map<String, List<Pago>> pagosPorRubro = {};
+          for (var doc in snapshot.data!.docs) {
+            final pago = Pago.fromFirestore(doc);
+            pagosPorRubro.putIfAbsent(pago.rubro, () => []).add(pago);
+          }
+
+          return ListView.builder(
+            itemCount: rubrosDePago.length,
+            itemBuilder: (context, index) {
+              final rubro = rubrosDePago[index];
+              final pagosDeEsteRubro = pagosPorRubro[rubro] ?? [];
+
+              return FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('precios')
+                    .where('grado', isEqualTo: alumnoActual.grado)
+                    .where('rubro', isEqualTo: rubro)
+                    .limit(1)
+                    .get(),
+                builder: (context, precioSnapshot) {
+                  if (precioSnapshot.connectionState == ConnectionState.waiting)
+                    return ListTile(
+                      title: Text(rubro),
+                      trailing: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  if (precioSnapshot.data == null ||
+                      precioSnapshot.data!.docs.isEmpty)
+                    return ListTile(
+                      title: Text(rubro),
+                      trailing: const Text('Precio no definido'),
+                    );
+
+                  final precioData =
+                      precioSnapshot.data!.docs.first.data()
+                          as Map<String, dynamic>;
+                  final totalPagado = pagosDeEsteRubro.fold(
+                    0.0,
+                    (sum, pago) => sum + pago.monto,
+                  );
+
+                  String estadoTexto;
+                  Color estadoColor;
+                  IconData estadoIcono;
+                  VoidCallback? onTapAction;
+
+                  if (rubro == 'Uniforme') {
+                    final componentes = Map<String, dynamic>.from(
+                      precioData['componentes'],
+                    );
+                    double deudaTotal = 0;
+                    if (alumnoActual.piezasUniforme != null) {
+                      alumnoActual.piezasUniforme!.forEach((pieza, cantidad) {
+                        deudaTotal +=
+                            (componentes[pieza] as num? ?? 0) *
+                            (cantidad as int);
+                      });
+                    }
+
+                    final restante = deudaTotal - totalPagado;
+
+                    if (alumnoActual.piezasUniforme == null ||
+                        alumnoActual.piezasUniforme!.isEmpty) {
+                      estadoTexto = 'Asignar Piezas';
+                      estadoColor = Colors.grey;
+                      estadoIcono = Icons.checkroom;
+                      onTapAction = () =>
+                          _showAssignUniformeDialog(context, componentes);
+                    } else {
+                      estadoTexto = 'Restante \$${restante.toStringAsFixed(2)}';
+                      estadoColor = restante <= 0
+                          ? Colors.green
+                          : (totalPagado > 0 ? Colors.blue : Colors.purple);
+                      estadoIcono = restante <= 0
+                          ? Icons.check_circle
+                          : Icons.shopping_cart_checkout;
+                      onTapAction = () => _showUniformPaymentDialog(
+                        context,
+                        componentes,
+                        pagosDeEsteRubro,
+                      );
+                    }
+                  } else if (rubro == 'Bata') {
+                    final preciosPorTalla = Map<String, dynamic>.from(
+                      precioData['preciosPorTalla'],
+                    );
+                    if (alumnoActual.tallaBata == null) {
+                      estadoTexto = 'Asignar Talla';
+                      estadoColor = Colors.grey;
+                      estadoIcono = Icons.style_outlined;
+                      onTapAction = () =>
+                          _showAssignBataDialog(context, preciosPorTalla);
+                    } else {
+                      final talla = alumnoActual.tallaBata!;
+                      final precioTotal =
+                          (preciosPorTalla[talla] as num?)?.toDouble() ?? 0.0;
+                      final restante = precioTotal - totalPagado;
+
+                      if (restante <= 0) {
+                        estadoTexto =
+                            'Pagado Total (\$${precioTotal.toStringAsFixed(2)})';
+                        estadoColor = Colors.green;
+                        estadoIcono = Icons.check_circle;
+                        onTapAction = () => _showPaymentHistoryDialog(
+                          context,
+                          rubro,
+                          pagosDeEsteRubro,
+                        );
+                      } else {
+                        estadoTexto =
+                            'Restante \$${restante.toStringAsFixed(2)}';
+                        estadoColor = totalPagado > 0
+                            ? Colors.blue
+                            : Colors.orange;
+                        estadoIcono = totalPagado > 0
+                            ? Icons.hourglass_top_outlined
+                            : Icons.hourglass_empty;
+                        onTapAction = () => _showAddPaymentDialog(
+                          context,
+                          rubro,
+                          precioData,
+                          pagosDeEsteRubro,
+                        );
+                      }
+                    }
+                  } else {
+                    final precioTotal = (precioData['monto'] as num).toDouble();
+                    final restante = precioTotal - totalPagado;
+                    if (restante <= 0) {
+                      estadoTexto =
+                          'Pagado Total \$${precioTotal.toStringAsFixed(2)}';
+                      estadoColor = Colors.green;
+                      estadoIcono = Icons.check_circle;
+                      onTapAction = () => _showPaymentHistoryDialog(
+                        context,
+                        rubro,
+                        pagosDeEsteRubro,
+                      );
+                    } else {
+                      estadoTexto = 'Restante \$${restante.toStringAsFixed(2)}';
+                      estadoColor = totalPagado > 0
+                          ? Colors.blue
+                          : Colors.orange;
+                      estadoIcono = totalPagado > 0
+                          ? Icons.hourglass_top_outlined
+                          : Icons.hourglass_empty;
+                      onTapAction = () => _showAddPaymentDialog(
+                        context,
+                        rubro,
+                        precioData,
+                        pagosDeEsteRubro,
+                      );
+                    }
+                  }
+
+                  return ListTile(
+                    leading: Icon(estadoIcono, color: estadoColor),
+                    title: Text(rubro),
+                    trailing: Text(
+                      estadoTexto,
+                      style: TextStyle(
+                        color: estadoColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: onTapAction,
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
