@@ -455,9 +455,9 @@ class _PagosPorRubro extends StatelessWidget {
           ),
         );
         totalIngresos += pago.monto;
-        if (pago.metodoPago == 'Efectivo')
+        if (pago.metodoPago == 'Efectivo') {
           ingresosEfectivo += pago.monto;
-        else if (pago.metodoPago == 'Tarjeta')
+        } else if (pago.metodoPago == 'Tarjeta')
           ingresosTarjeta += pago.monto;
       }
     }
@@ -482,9 +482,9 @@ class _PagosPorRubro extends StatelessWidget {
         ),
       );
       totalGastos += montoGasto;
-      if (gasto['fuente'] == 'Efectivo')
+      if (gasto['fuente'] == 'Efectivo') {
         gastosEfectivo += montoGasto;
-      else if (gasto['fuente'] == 'Tarjeta')
+      } else if (gasto['fuente'] == 'Tarjeta')
         gastosTarjeta += montoGasto;
     }
 
@@ -503,10 +503,12 @@ class _PagosPorRubro extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>>(
       future: _getMovimientos(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError)
+        }
+        if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
+        }
 
         final data = snapshot.data ?? {};
         final movimientos = data['movimientos'] as List<Movimiento>? ?? [];

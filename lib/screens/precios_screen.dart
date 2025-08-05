@@ -38,7 +38,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
           for (var doc in snapshot.data!.docs) {
             final data = doc.data(); // Obtenemos los datos
             // Hacemos el cast a Map para poder leer el campo 'grado' de forma segura
-            final grado = (data as Map<String, dynamic>)['grado'] as String?;
+            final grado = (data)['grado'] as String?;
             if (grado != null) {
               preciosPorGrado.putIfAbsent(grado, () => []).add(doc);
             }

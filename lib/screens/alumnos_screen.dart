@@ -109,7 +109,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   setState(() {});
                                 }
                               });
-                              ;
                             },
                           ),
                           DataCell(
@@ -129,7 +128,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   setState(() {});
                                 }
                               });
-                              ;
                             },
                           ),
                           DataCell(
@@ -149,7 +147,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                   setState(() {});
                                 }
                               });
-                              ;
                             },
                           ),
                           DataCell(
@@ -173,7 +170,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                                     setState(() {});
                                   }
                                 });
-                                ;
                               },
                             ),
                           ),

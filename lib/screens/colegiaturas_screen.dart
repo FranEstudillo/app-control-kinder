@@ -143,8 +143,9 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                           validator: (value) {
                             if (value == null ||
                                 value.isEmpty ||
-                                double.tryParse(value) == null)
+                                double.tryParse(value) == null) {
                               return 'Ingrese un monto válido';
+                            }
                             return null;
                           },
                         ),
