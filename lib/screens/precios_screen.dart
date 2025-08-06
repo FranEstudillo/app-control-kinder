@@ -16,6 +16,123 @@ class _PreciosScreenState extends State<PreciosScreen> {
     'Kínder 3',
   ];
 
+  Future<void> _mostrarDialogoEditarPrecio(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final data = doc.data()!;
+    final rubro = data['rubro'] as String;
+    final formKey = GlobalKey<FormState>();
+    final Map<String, TextEditingController> controllers = {};
+
+    // Función para construir el diálogo
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Editar Precios de $rubro'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Lógica para construir el formulario según el tipo de rubro
+                  if (data.containsKey('monto'))
+                    TextFormField(
+                      controller: (controllers['monto'] =
+                          TextEditingController(
+                              text: (data['monto'] as num).toString())),
+                      decoration: const InputDecoration(labelText: 'Monto'),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Campo requerido' : null,
+                    )
+                  else if (rubro == 'Bata' &&
+                      data.containsKey('preciosPorTalla'))
+                    ...(data['preciosPorTalla'] as Map<String, dynamic>)
+                        .entries
+                        .map((entry) {
+                      return TextFormField(
+                        controller: (controllers[entry.key] =
+                            TextEditingController(
+                                text: (entry.value as num).toString())),
+                        decoration:
+                            InputDecoration(labelText: 'Talla ${entry.key}'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Campo requerido'
+                            : null,
+                      );
+                    }).toList()
+                  else if (rubro == 'Uniforme' &&
+                      data.containsKey('componentes'))
+                    ...(data['componentes'] as Map<String, dynamic>)
+                        .entries
+                        .map((entry) {
+                      return TextFormField(
+                        controller: (controllers[entry.key] =
+                            TextEditingController(
+                                text: (entry.value as num).toString())),
+                        decoration: InputDecoration(labelText: entry.key),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Campo requerido'
+                            : null,
+                      );
+                    }).toList()
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final Map<String, dynamic> nuevosValores = {};
+
+                  // Recolectar nuevos valores
+                  if (data.containsKey('monto')) {
+                    nuevosValores['monto'] =
+                        double.parse(controllers['monto']!.text);
+                  } else if (rubro == 'Bata') {
+                    final preciosPorTalla = {
+                      for (var entry in controllers.entries)
+                        entry.key: double.parse(entry.value.text)
+                    };
+                    nuevosValores['preciosPorTalla'] = preciosPorTalla;
+                  } else if (rubro == 'Uniforme') {
+                    final componentes = {
+                      for (var entry in controllers.entries)
+                        entry.key: double.parse(entry.value.text)
+                    };
+                    nuevosValores['componentes'] = componentes;
+                  }
+
+                  // Actualizar en Firestore
+                  await FirebaseFirestore.instance
+                      .collection('precios')
+                      .doc(doc.id)
+                      .update(nuevosValores);
+
+                  if (mounted) Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,11 +151,11 @@ class _PreciosScreenState extends State<PreciosScreen> {
             return const Center(child: Text('No hay precios definidos.'));
           }
 
-          final Map<String, List<QueryDocumentSnapshot>> preciosPorGrado = {};
+          final Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+              preciosPorGrado = {};
           for (var doc in snapshot.data!.docs) {
-            final data = doc.data(); // Obtenemos los datos
-            // Hacemos el cast a Map para poder leer el campo 'grado' de forma segura
-            final grado = (data)['grado'] as String?;
+            final data = doc.data();
+            final grado = data['grado'] as String?;
             if (grado != null) {
               preciosPorGrado.putIfAbsent(grado, () => []).add(doc);
             }
@@ -72,8 +189,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
                     ),
                     initiallyExpanded: true,
                     children: preciosDelGrado.map((doc) {
-                      // ✅ CORRECCIÓN PRINCIPAL: Hacemos el cast aquí
-                      final data = doc.data() as Map<String, dynamic>;
+                      final data = doc.data();
                       final rubro = data['rubro'] as String? ?? 'Sin Rubro';
                       Widget detallePrecio;
                       IconData icono = Icons.help_outline;
@@ -84,7 +200,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
                             data['preciosPorTalla'] as Map<String, dynamic>;
                         final detalles = preciosTalla.entries.map((entry) {
                           return Text(
-                            '  • ${entry.key}: \$${(entry.value as num).toStringAsFixed(2)}',
+                            '  • Talla ${entry.key}: \$${(entry.value as num).toStringAsFixed(2)}',
                           );
                         }).toList();
                         detallePrecio = Column(
@@ -130,9 +246,11 @@ class _PreciosScreenState extends State<PreciosScreen> {
                           padding: const EdgeInsets.only(top: 4.0),
                           child: detallePrecio,
                         ),
-                        onTap: () {
-                          // Lógica para editar (futuro)
-                        },
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.grey),
+                          onPressed: () =>
+                              _mostrarDialogoEditarPrecio(context, doc),
+                        ),
                       );
                     }).toList(),
                   ),

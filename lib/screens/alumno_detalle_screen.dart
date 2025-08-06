@@ -32,6 +32,17 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
     final TextEditingController nombreController = TextEditingController(
       text: alumno.nombre,
     );
+    final TextEditingController nombrePadreController = TextEditingController(
+      text: alumno.nombrePadre,
+    );
+    final TextEditingController contactoEmergencia1Controller =
+        TextEditingController(
+      text: alumno.contactoEmergencia1,
+    );
+    final TextEditingController contactoEmergencia2Controller =
+        TextEditingController(
+      text: alumno.contactoEmergencia2,
+    );
     String? gradoSeleccionado = alumno.grado;
 
     showDialog(
@@ -41,36 +52,61 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text("Editar Alumno"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nombreController,
-                    decoration: const InputDecoration(
-                      labelText: "Nombre del Alumno",
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nombreController,
+                      decoration: const InputDecoration(
+                        labelText: "Nombre del Alumno",
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // ESTE ES EL CÓDIGO DEL DESPLEGABLE
-                  DropdownButtonFormField<String>(
-                    value: gradoSeleccionado,
-                    decoration: const InputDecoration(
-                      labelText: 'Grado',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 16),
+                    // ESTE ES EL CÓDIGO DEL DESPLEGABLE
+                    DropdownButtonFormField<String>(
+                      value: gradoSeleccionado,
+                      decoration: const InputDecoration(
+                        labelText: 'Grado',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _grados.map((String grado) {
+                        return DropdownMenuItem<String>(
+                          value: grado,
+                          child: Text(grado),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setDialogState(() {
+                          gradoSeleccionado = newValue;
+                        });
+                      },
                     ),
-                    items: _grados.map((String grado) {
-                      return DropdownMenuItem<String>(
-                        value: grado,
-                        child: Text(grado),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setDialogState(() {
-                        gradoSeleccionado = newValue;
-                      });
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nombrePadreController,
+                      decoration: const InputDecoration(
+                        labelText: "Nombre del Padre o Tutor",
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: contactoEmergencia1Controller,
+                      decoration: const InputDecoration(
+                        labelText: "Contacto de Emergencia 1",
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: contactoEmergencia2Controller,
+                      decoration: const InputDecoration(
+                        labelText: "Contacto de Emergencia 2 (Opcional)",
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -88,9 +124,14 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                         .collection('alumnos')
                         .doc(alumnoMostrado.id)
                         .update({
-                          'nombre': nombreController.text,
-                          'grado': gradoSeleccionado,
-                        });
+                      'nombre': nombreController.text,
+                      'grado': gradoSeleccionado,
+                      'nombrePadre': nombrePadreController.text,
+                      'contactoEmergencia1':
+                          contactoEmergencia1Controller.text,
+                      'contactoEmergencia2':
+                          contactoEmergencia2Controller.text,
+                    });
 
                     // 2. Cerramos el popup
                     Navigator.of(context).pop();
@@ -114,7 +155,7 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
         title: Text(alumnoMostrado.nombre),
         actions: [
           IconButton(
-            icon: Icon(Icons.edit),
+            icon: const Icon(Icons.edit),
             onPressed: () {
               // Aquí va la lógica para abrir el popup de edición.
               // Usaremos la función _mostrarPopupEditar que definimos en el plan.
@@ -155,6 +196,42 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
               'Grado: ${alumnoMostrado.grado}',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Información de Contacto',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    if (alumnoMostrado.nombrePadre != null &&
+                        alumnoMostrado.nombrePadre!.isNotEmpty) ...[
+                      Text('Padre o Tutor: ${alumnoMostrado.nombrePadre}'),
+                      const Divider(),
+                    ],
+                    if (alumnoMostrado.contactoEmergencia1 != null &&
+                        alumnoMostrado.contactoEmergencia1!.isNotEmpty) ...[
+                      Text(
+                          'Contacto 1: ${alumnoMostrado.contactoEmergencia1}'),
+                      const Divider(),
+                    ],
+                    if (alumnoMostrado.contactoEmergencia2 != null &&
+                        alumnoMostrado.contactoEmergencia2!.isNotEmpty)
+                      Text(
+                          'Contacto 2: ${alumnoMostrado.contactoEmergencia2}'),
+                  ],
+                ),
+              ),
             ),
             // Espaciador para empujar el botón hacia abajo
             const Spacer(),

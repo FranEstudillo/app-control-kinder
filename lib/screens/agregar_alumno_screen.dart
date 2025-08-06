@@ -17,6 +17,9 @@ class AgregarAlumnoScreen extends StatefulWidget {
 class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
+  final _nombrePadreController = TextEditingController();
+  final _contactoEmergencia1Controller = TextEditingController();
+  final _contactoEmergencia2Controller = TextEditingController();
   String? _selectedGrado;
   final List<String> _grados = ['Maternal', 'Kínder 1', 'Kínder 2', 'Kínder 3'];
   File? _imageFile; // Variable para guardar la foto seleccionada
@@ -25,6 +28,9 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
   @override
   void dispose() {
     _nombreController.dispose();
+    _nombrePadreController.dispose();
+    _contactoEmergencia1Controller.dispose();
+    _contactoEmergencia2Controller.dispose();
     super.dispose();
   }
 
@@ -78,6 +84,9 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
         nombre: _nombreController.text,
         grado: _selectedGrado!,
         fotoUrl: fotoUrl,
+        nombrePadre: _nombrePadreController.text,
+        contactoEmergencia1: _contactoEmergencia1Controller.text,
+        contactoEmergencia2: _contactoEmergencia2Controller.text,
       );
 
       await FirebaseFirestore.instance
@@ -101,99 +110,139 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Widget para seleccionar y mostrar la foto del alumno
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.grey[200],
-                      // Mostramos la imagen seleccionada o un ícono de persona
-                      backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : null,
-                      child: _imageFile == null
-                          ? Icon(
-                              Icons.person,
-                              color: Colors.grey[800],
-                              size: 50,
-                            )
-                          : null,
-                    ),
-                    // Icono de cámara para seleccionar la imagen
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: const CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.amber,
-                          child: Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Widget para seleccionar y mostrar la foto del alumno
+                Center(
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.grey[200],
+                        // Mostramos la imagen seleccionada o un ícono de persona
+                        backgroundImage:
+                            _imageFile != null ? FileImage(_imageFile!) : null,
+                        child: _imageFile == null
+                            ? Icon(
+                                Icons.person,
+                                color: Colors.grey[800],
+                                size: 50,
+                              )
+                            : null,
+                      ),
+                      // Icono de cámara para seleccionar la imagen
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.amber,
+                            child: Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Campo de texto para el nombre
-              TextFormField(
-                controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre Completo',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingrese el nombre del alumno';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Menú desplegable para el grado
-              DropdownButtonFormField<String>(
-                value: _selectedGrado,
-                decoration: const InputDecoration(
-                  labelText: 'Grado',
-                  border: OutlineInputBorder(),
-                ),
-                hint: const Text('Seleccione un grado'),
-                items: _grados.map((String grado) {
-                  return DropdownMenuItem<String>(
-                    value: grado,
-                    child: Text(grado),
-                  );
-                }).toList(),
-                onChanged: (newValue) =>
-                    setState(() => _selectedGrado = newValue),
-                validator: (value) =>
-                    value == null ? 'Por favor, seleccione un grado' : null,
-              ),
-              const Spacer(),
-              // Botón para guardar
-              ElevatedButton(
-                onPressed: _guardarAlumno,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    ],
                   ),
                 ),
-                child: const Text('Guardar Alumno'),
-              ),
-            ],
+                const SizedBox(height: 24),
+                // Campo de texto para el nombre
+                TextFormField(
+                  controller: _nombreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre Completo',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingrese el nombre del alumno';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Menú desplegable para el grado
+                DropdownButtonFormField<String>(
+                  value: _selectedGrado,
+                  decoration: const InputDecoration(
+                    labelText: 'Grado',
+                    border: OutlineInputBorder(),
+                  ),
+                  hint: const Text('Seleccione un grado'),
+                  items: _grados.map((String grado) {
+                    return DropdownMenuItem<String>(
+                      value: grado,
+                      child: Text(grado),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) =>
+                      setState(() => _selectedGrado = newValue),
+                  validator: (value) =>
+                      value == null ? 'Por favor, seleccione un grado' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nombrePadreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre del Padre o Tutor',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingrese el nombre del padre o tutor';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contactoEmergencia1Controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Contacto de Emergencia 1',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingrese un número de contacto';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contactoEmergencia2Controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Contacto de Emergencia 2 (Opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+
+                const SizedBox(height: 16),
+                // Botón para guardar
+                ElevatedButton(
+                  onPressed: _guardarAlumno,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  child: const Text('Guardar Alumno'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -9,6 +9,9 @@ class Alumno {
   final String? id; // ID del documento de Firestore
   final String? tallaBata;
   final Map<String, dynamic>? piezasUniforme;
+  final String? nombrePadre;
+  final String? contactoEmergencia1;
+  final String? contactoEmergencia2;
 
   const Alumno({
     required this.nombre,
@@ -17,6 +20,9 @@ class Alumno {
     this.id,
     this.tallaBata,
     this.piezasUniforme,
+    this.nombrePadre,
+    this.contactoEmergencia1,
+    this.contactoEmergencia2,
   });
   // ✅ AGREGA ESTE MÉTODO COMPLETO
   Alumno copyWith({
@@ -26,6 +32,9 @@ class Alumno {
     // String? fotoUrl,
     String? tallaBata,
     Map<String, dynamic>? piezasUniforme,
+    String? nombrePadre,
+    String? contactoEmergencia1,
+    String? contactoEmergencia2,
   }) {
     return Alumno(
       id: id ?? this.id,
@@ -34,6 +43,9 @@ class Alumno {
       // fotoUrl: fotoUrl ?? this.fotoUrl,
       tallaBata: tallaBata ?? this.tallaBata,
       piezasUniforme: piezasUniforme ?? this.piezasUniforme,
+      nombrePadre: nombrePadre ?? this.nombrePadre,
+      contactoEmergencia1: contactoEmergencia1 ?? this.contactoEmergencia1,
+      contactoEmergencia2: contactoEmergencia2 ?? this.contactoEmergencia2,
     );
   }
 
@@ -45,6 +57,9 @@ class Alumno {
       'fotoUrl': fotoUrl,
       'tallaBata': tallaBata,
       'piezasUniforme': piezasUniforme,
+      'nombrePadre': nombrePadre,
+      'contactoEmergencia1': contactoEmergencia1,
+      'contactoEmergencia2': contactoEmergencia2,
     };
   }
 
@@ -58,6 +73,9 @@ class Alumno {
       fotoUrl: data['fotoUrl'],
       tallaBata: data['tallaBata'],
       piezasUniforme: data['piezasUniforme'],
+      nombrePadre: data['nombrePadre'],
+      contactoEmergencia1: data['contactoEmergencia1'],
+      contactoEmergencia2: data['contactoEmergencia2'],
     );
   }
 }
