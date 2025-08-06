@@ -686,7 +686,7 @@ class _PagosScreenState extends State<PagosScreen> {
                           ? Icons.check_circle
                           : (totalPagado > 0
                                 ? Icons.hourglass_top_outlined
-                                : Icons.shopping_cart_checkout);
+                                : Icons.hourglass_empty);
 
                       // ✅ LÓGICA DE ONTAP CORREGIDA
                       if (restante <= 0) {
@@ -757,7 +757,7 @@ class _PagosScreenState extends State<PagosScreen> {
                             'Restante \$${restante.toStringAsFixed(2)}';
                         estadoColor = totalPagado > 0
                             ? Colors.blue
-                            : Colors.orange;
+                            : Colors.deepPurple;
                         estadoIcono = totalPagado > 0
                             ? Icons.hourglass_top_outlined
                             : Icons.hourglass_empty;
