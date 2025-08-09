@@ -454,7 +454,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total Recaudado (Colegiaturas)'),
                         trailing: Text(
-                          "${totalGeneral.toStringAsFixed(2)}",
+                          totalGeneral.toStringAsFixed(2),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -472,7 +472,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total en efectivo'),
                         trailing: Text(
-                          '${totalEfectivo.toStringAsFixed(2)}',
+                          totalEfectivo.toStringAsFixed(2),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -490,7 +490,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total en tarjeta'),
                         trailing: Text(
-                          '${totalTarjeta.toStringAsFixed(2)}',
+                          totalTarjeta.toStringAsFixed(2),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,

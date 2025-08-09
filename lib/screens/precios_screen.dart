@@ -66,7 +66,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
                             ? 'Campo requerido'
                             : null,
                       );
-                    }).toList()
+                    })
                   else if (rubro == 'Uniforme' &&
                       data.containsKey('componentes'))
                     ...(data['componentes'] as Map<String, dynamic>)
@@ -83,7 +83,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
                             ? 'Campo requerido'
                             : null,
                       );
-                    }).toList()
+                    })
                 ],
               ),
             ),
