@@ -519,7 +519,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: Text(alumno.nombre),
                         subtitle: Text(alumno.grado),
-                        // StreamBuilder para mostrar el número de pagos en tiempo real.
+                        // StreamBuilder para mostrar el número de pagos en tiempo real.-m
                         trailing: StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('alumnos')

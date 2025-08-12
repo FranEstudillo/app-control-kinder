@@ -554,13 +554,8 @@ class _PagosScreenState extends State<PagosScreen> {
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blueAccent),
                         onPressed: () {
-                          Navigator.of(
-                            dialogContext,
-                          ).pop(); // Cierra el historial
-                          _showEditPaymentDialog(
-                            context,
-                            pago,
-                          ); // Abre el de edición
+                          Navigator.of(dialogContext).pop();
+                          _showEditPaymentDialog(context, pago);
                         },
                         tooltip: 'Editar Pago',
                       ),
@@ -652,6 +647,7 @@ class _PagosScreenState extends State<PagosScreen> {
                   Color estadoColor;
                   IconData estadoIcono;
                   Widget trailingWidget;
+                  VoidCallback? onTapAction;
 
                   if (rubro == 'Uniforme') {
                     final componentes = Map<String, dynamic>.from(
@@ -672,6 +668,8 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoTexto = 'Asignar Piezas';
                       estadoColor = Colors.grey;
                       estadoIcono = Icons.checkroom;
+                      onTapAction = () =>
+                          _showAssignUniformeDialog(context, componentes);
                       trailingWidget = Text(
                         estadoTexto,
                         style: TextStyle(
@@ -688,7 +686,24 @@ class _PagosScreenState extends State<PagosScreen> {
                           ? Icons.check_circle
                           : (totalPagado > 0
                                 ? Icons.hourglass_top_outlined
-                                : Icons.shopping_cart_checkout);
+                                : Icons.hourglass_empty);
+
+                      // ✅ LÓGICA DE ONTAP CORREGIDA
+                      if (restante <= 0) {
+                        onTapAction = () => _showPaymentHistoryDialog(
+                          context,
+                          rubro,
+                          pagosDeEsteRubro,
+                        );
+                      } else {
+                        onTapAction = () => _showAddPaymentDialog(
+                          context,
+                          rubro,
+                          precioData,
+                          pagosDeEsteRubro,
+                        );
+                      }
+
                       trailingWidget = Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -720,26 +735,38 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoTexto = 'Asignar Talla';
                       estadoColor = Colors.grey;
                       estadoIcono = Icons.style_outlined;
+                      onTapAction = () =>
+                          _showAssignBataDialog(context, preciosPorTalla);
                     } else {
                       final talla = alumnoActual.tallaBata!;
                       final precioTotal =
                           (preciosPorTalla[talla] as num?)?.toDouble() ?? 0.0;
                       final restante = precioTotal - totalPagado;
-
                       if (restante <= 0) {
                         estadoTexto =
                             'Pagado Total (\$${precioTotal.toStringAsFixed(2)})';
                         estadoColor = Colors.green;
                         estadoIcono = Icons.check_circle;
+                        onTapAction = () => _showPaymentHistoryDialog(
+                          context,
+                          rubro,
+                          pagosDeEsteRubro,
+                        );
                       } else {
                         estadoTexto =
                             'Restante \$${restante.toStringAsFixed(2)}';
                         estadoColor = totalPagado > 0
                             ? Colors.blue
-                            : Colors.orange;
+                            : Colors.deepPurple;
                         estadoIcono = totalPagado > 0
                             ? Icons.hourglass_top_outlined
                             : Icons.hourglass_empty;
+                        onTapAction = () => _showAddPaymentDialog(
+                          context,
+                          rubro,
+                          precioData,
+                          pagosDeEsteRubro,
+                        );
                       }
                     }
                     trailingWidget = Text(
@@ -757,6 +784,11 @@ class _PagosScreenState extends State<PagosScreen> {
                           'Pagado Total \$${precioTotal.toStringAsFixed(2)}';
                       estadoColor = Colors.green;
                       estadoIcono = Icons.check_circle;
+                      onTapAction = () => _showPaymentHistoryDialog(
+                        context,
+                        rubro,
+                        pagosDeEsteRubro,
+                      );
                     } else {
                       estadoTexto = 'Restante \$${restante.toStringAsFixed(2)}';
                       estadoColor = totalPagado > 0
@@ -765,6 +797,12 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoIcono = totalPagado > 0
                           ? Icons.hourglass_top_outlined
                           : Icons.hourglass_empty;
+                      onTapAction = () => _showAddPaymentDialog(
+                        context,
+                        rubro,
+                        precioData,
+                        pagosDeEsteRubro,
+                      );
                     }
                     trailingWidget = Text(
                       estadoTexto,
@@ -779,74 +817,7 @@ class _PagosScreenState extends State<PagosScreen> {
                     leading: Icon(estadoIcono, color: estadoColor),
                     title: Text(rubro),
                     trailing: trailingWidget,
-                    onTap: () {
-                      if (rubro == 'Uniforme') {
-                        if (alumnoActual.piezasUniforme == null ||
-                            alumnoActual.piezasUniforme!.isEmpty) {
-                          _showAssignUniformeDialog(
-                            context,
-                            Map<String, dynamic>.from(
-                              precioData['componentes'],
-                            ),
-                          );
-                        } else {
-                          _showAddPaymentDialog(
-                            context,
-                            rubro,
-                            precioData,
-                            pagosDeEsteRubro,
-                          );
-                        }
-                      } else if (rubro == 'Bata') {
-                        final totalPagadoBata = pagosDeEsteRubro.fold(
-                          0.0,
-                          (sum, pago) => sum + pago.monto,
-                        );
-                        final preciosTallaBata = Map<String, dynamic>.from(
-                          precioData['preciosPorTalla'],
-                        );
-                        if (alumnoActual.tallaBata == null) {
-                          _showAssignBataDialog(context, preciosTallaBata);
-                        } else {
-                          final precioTotalBata =
-                              (preciosTallaBata[alumnoActual.tallaBata!]
-                                      as num?)
-                                  ?.toDouble() ??
-                              0.0;
-                          if (precioTotalBata - totalPagadoBata > 0) {
-                            _showAddPaymentDialog(
-                              context,
-                              rubro,
-                              precioData,
-                              pagosDeEsteRubro,
-                            );
-                          } else {
-                            _showPaymentHistoryDialog(
-                              context,
-                              rubro,
-                              pagosDeEsteRubro,
-                            );
-                          }
-                        }
-                      } else {
-                        final precioTotal = (precioData['monto'] as num)
-                            .toDouble();
-                        if (precioTotal - totalPagado > 0) {
-                          _showAddPaymentDialog(
-                            context,
-                            rubro,
-                            precioData,
-                            pagosDeEsteRubro,
-                          );
-                        } else {
-                          _showPaymentHistoryDialog(
-                            context,
-                            rubro,
-                            pagosDeEsteRubro,
-                          );
-                        }
-                      }
-                    },
+                    onTap: onTapAction,
                   );
                 },
               );
