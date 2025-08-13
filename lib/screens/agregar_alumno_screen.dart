@@ -6,6 +6,8 @@ import '../models/alumno.dart';
 //firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+//utils
+import '../utils/color_utils.dart';
 
 class AgregarAlumnoScreen extends StatefulWidget {
   const AgregarAlumnoScreen({super.key});
@@ -103,7 +105,7 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agregar Nuevo Alumno'),
-        backgroundColor: Colors.amber,
+        backgroundColor: Colors.blue.shade900,
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -122,8 +124,9 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
                         radius: 50,
                         backgroundColor: Colors.grey[200],
                         // Mostramos la imagen seleccionada o un ícono de persona
-                        backgroundImage:
-                            _imageFile != null ? FileImage(_imageFile!) : null,
+                        backgroundImage: _imageFile != null
+                            ? FileImage(_imageFile!)
+                            : null,
                         child: _imageFile == null
                             ? Icon(
                                 Icons.person,
@@ -138,9 +141,9 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
                         right: 0,
                         child: GestureDetector(
                           onTap: _pickImage,
-                          child: const CircleAvatar(
+                          child: CircleAvatar(
                             radius: 18,
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Colors.blue.shade900,
                             child: Icon(
                               Icons.camera_alt,
                               color: Colors.white,
@@ -156,9 +159,19 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
                 // Campo de texto para el nombre
                 TextFormField(
                   controller: _nombreController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Nombre Completo',
+
+                    //labelStyle: TextStyle(color: Colors.blue.shade900),
                     border: OutlineInputBorder(),
+                    //focusColor: Colors.blue.shade900,
+                    //hoverColor: Colors.blue.shade900,
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade900,
+                        width: 2.0,
+                      ),
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -231,7 +244,7 @@ class _AgregarAlumnoScreenState extends State<AgregarAlumnoScreen> {
                 ElevatedButton(
                   onPressed: _guardarAlumno,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
+                    backgroundColor: Colors.blue.shade900,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(

@@ -6,6 +6,8 @@ import 'package:app_control_kinder_v4/screens/pagos_screen.dart';
 //firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
 //import 'package:firebase_storage/firebase_storage.dart';
+//utils
+import 'package:app_control_kinder_v4/utils/color_utils.dart';
 
 // 2. Creamos la nueva pantalla para mostrar los detalles del alumno.
 class AlumnoDetalleScreen extends StatefulWidget {
@@ -36,13 +38,9 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
       text: alumno.nombrePadre,
     );
     final TextEditingController contactoEmergencia1Controller =
-        TextEditingController(
-      text: alumno.contactoEmergencia1,
-    );
+        TextEditingController(text: alumno.contactoEmergencia1);
     final TextEditingController contactoEmergencia2Controller =
-        TextEditingController(
-      text: alumno.contactoEmergencia2,
-    );
+        TextEditingController(text: alumno.contactoEmergencia2);
     String? gradoSeleccionado = alumno.grado;
 
     showDialog(
@@ -124,14 +122,14 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                         .collection('alumnos')
                         .doc(alumnoMostrado.id)
                         .update({
-                      'nombre': nombreController.text,
-                      'grado': gradoSeleccionado,
-                      'nombrePadre': nombrePadreController.text,
-                      'contactoEmergencia1':
-                          contactoEmergencia1Controller.text,
-                      'contactoEmergencia2':
-                          contactoEmergencia2Controller.text,
-                    });
+                          'nombre': nombreController.text,
+                          'grado': gradoSeleccionado,
+                          'nombrePadre': nombrePadreController.text,
+                          'contactoEmergencia1':
+                              contactoEmergencia1Controller.text,
+                          'contactoEmergencia2':
+                              contactoEmergencia2Controller.text,
+                        });
 
                     // 2. Cerramos el popup
                     Navigator.of(context).pop();
@@ -152,6 +150,8 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // 2. Aplicamos el color dinámicamente
+        backgroundColor: getColorForGrado(alumnoMostrado.grado),
         title: Text(alumnoMostrado.nombre),
         actions: [
           IconButton(
@@ -163,7 +163,7 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
             },
           ),
         ],
-        backgroundColor: Colors.amber,
+        // backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -178,9 +178,9 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
               backgroundImage: alumnoMostrado.fotoUrl != null
                   ? NetworkImage(alumnoMostrado.fotoUrl!)
                   : null,
-              backgroundColor: Colors.amber[100],
+              backgroundColor: getColorForGrado(alumnoMostrado.grado),
               child: alumnoMostrado.fotoUrl == null
-                  ? const Icon(Icons.person, size: 100, color: Colors.amber)
+                  ? const Icon(Icons.person, size: 100, color: Colors.white)
                   : null,
             ),
             const SizedBox(height: 24),
@@ -210,8 +210,10 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                   children: [
                     const Text(
                       'Información de Contacto',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     if (alumnoMostrado.nombrePadre != null &&
@@ -221,14 +223,12 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                     ],
                     if (alumnoMostrado.contactoEmergencia1 != null &&
                         alumnoMostrado.contactoEmergencia1!.isNotEmpty) ...[
-                      Text(
-                          'Contacto 1: ${alumnoMostrado.contactoEmergencia1}'),
+                      Text('Contacto 1: ${alumnoMostrado.contactoEmergencia1}'),
                       const Divider(),
                     ],
                     if (alumnoMostrado.contactoEmergencia2 != null &&
                         alumnoMostrado.contactoEmergencia2!.isNotEmpty)
-                      Text(
-                          'Contacto 2: ${alumnoMostrado.contactoEmergencia2}'),
+                      Text('Contacto 2: ${alumnoMostrado.contactoEmergencia2}'),
                   ],
                 ),
               ),
@@ -247,7 +247,7 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
+                backgroundColor: getColorForGrado(alumnoMostrado.grado),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 textStyle: const TextStyle(

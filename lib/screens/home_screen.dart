@@ -13,12 +13,12 @@ class HomeScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.amber,
+          backgroundColor: Colors.blue.shade900,
           title: const Text(
             'Mi primer ABC',
             style: TextStyle(color: Colors.white),
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
               Tab(icon: Icon(Icons.home), text: 'Home'),
               Tab(icon: Icon(Icons.settings), text: 'Configuraciones'),
@@ -26,6 +26,7 @@ class HomeScreen extends StatelessWidget {
             ],
             indicatorColor: Colors.white,
             labelColor: Colors.white,
+            unselectedLabelColor: Colors.grey.shade600,
           ),
         ),
         body: TabBarView(
@@ -54,10 +55,10 @@ class HomeScreen extends StatelessWidget {
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundColor: Colors.amber,
+                          backgroundColor: Colors.amber.shade400,
                           child: Icon(
                             Icons.group,
                             size: 50,
@@ -136,10 +137,10 @@ class HomeScreen extends StatelessWidget {
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Colors.blue.shade400,
                           child: Icon(
                             Icons.school, // Ícono representativo
                             size: 50,
@@ -213,6 +214,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
 
+            // Con esto se agrega otra pestaña
             // const Center(child: Text("Settings Screen")),
           ],
         ),
