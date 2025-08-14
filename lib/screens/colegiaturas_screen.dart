@@ -15,6 +15,7 @@ class ColegiaturasScreen extends StatefulWidget {
 
 // Define el estado para ColegiaturasScreen.
 class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
+  /*** 
   // Muestra un diálogo con el historial de pagos de colegiatura de un alumno específico.
   Future<void> _mostrarHistorialPagos(
     String alumnoId,
@@ -82,6 +83,8 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
     );
   }
 
+  
+  */
   // Muestra un popup para registrar un nuevo pago de colegiatura.
   Future<bool?> _mostrarPopupRegistrarPago() async {
     return showDialog<bool>(

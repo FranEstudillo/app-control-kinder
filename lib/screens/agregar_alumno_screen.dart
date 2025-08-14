@@ -7,7 +7,7 @@ import '../models/alumno.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 //utils
-import '../utils/color_utils.dart';
+//import '../utils/color_utils.dart';
 
 class AgregarAlumnoScreen extends StatefulWidget {
   const AgregarAlumnoScreen({super.key});
