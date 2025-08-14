@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/alumno.dart';
 import '../models/pago.dart';
-import 'package:app_control_kinder_v4/utils/color_utils.dart';
 
 class PagosScreen extends StatefulWidget {
   final Alumno alumno;
@@ -29,10 +28,11 @@ class _PagosScreenState extends State<PagosScreen> {
     'Bata',
   ];
 
-  // --- FUNCIÓN PARA ASIGNAR/EDITAR PIEZAS DE UNIFORME ---
+  // --- FUNCIÓN PARA ASIGNAR/EDITAR PIEZAS Y PRECIO DE UNIFORME ---
   Future<void> _showAssignUniformeDialog(
     BuildContext context,
     Map<String, dynamic> componentes,
+    double precioPaqueteDefault,
   ) async {
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -40,15 +40,45 @@ class _PagosScreenState extends State<PagosScreen> {
     Map<String, int> piezasAsignadas = (alumnoActual.piezasUniforme ?? {}).map(
       (key, value) => MapEntry(key, value as int),
     );
-    for (var pieza in componentes.keys) {
+    componentes.keys.forEach((pieza) {
       piezasAsignadas.putIfAbsent(pieza, () => 0);
-    }
+    });
 
-    final result = await showDialog<Map<String, int>>(
+    final precioPaqueteController = TextEditingController(
+      text: (alumnoActual.precioPaqueteUniforme ?? precioPaqueteDefault)
+          .toStringAsFixed(2),
+    );
+
+    bool paqueteCompletoActivo = piezasAsignadas.values.every(
+      (cantidad) => cantidad >= 1,
+    );
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            double calcularDeudaTotal() {
+              double total = 0;
+              final precioPaqueteEditado =
+                  double.tryParse(precioPaqueteController.text) ??
+                  precioPaqueteDefault;
+
+              if (paqueteCompletoActivo && precioPaqueteEditado > 0) {
+                total += precioPaqueteEditado;
+                piezasAsignadas.forEach((pieza, cantidad) {
+                  if (cantidad > 1) {
+                    total += (componentes[pieza] as num) * (cantidad - 1);
+                  }
+                });
+              } else {
+                piezasAsignadas.forEach((pieza, cantidad) {
+                  total += (componentes[pieza] as num) * cantidad;
+                });
+              }
+              return total;
+            }
+
             return AlertDialog(
               title: const Text('Asignar/Editar Piezas'),
               content: SingleChildScrollView(
@@ -72,10 +102,13 @@ class _PagosScreenState extends State<PagosScreen> {
                                       piezasAsignadas[pieza] =
                                           piezasAsignadas[pieza]! - 1;
                                     }
+                                    if (piezasAsignadas[pieza] == 0) {
+                                      paqueteCompletoActivo = false;
+                                    }
                                   });
                                 },
                               ),
-                              Text(piezasAsignadas[pieza].toString()),
+                              Text(piezasAsignadas[pieza]?.toString() ?? "0"),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline),
                                 onPressed: () {
@@ -89,17 +122,55 @@ class _PagosScreenState extends State<PagosScreen> {
                           ),
                         ],
                       );
-                    }),
+                    }).toList(),
                     const Divider(),
-                    ElevatedButton(
-                      child: const Text('Asignar Uniforme Completo'),
-                      onPressed: () {
+                    SwitchListTile(
+                      title: const Text('Aplicar Precio Paquete'),
+                      subtitle: Text(
+                        'Total con descuento: \$${precioPaqueteDefault.toStringAsFixed(2)}',
+                      ),
+                      value: paqueteCompletoActivo,
+                      onChanged: (value) {
                         setDialogState(() {
-                          for (var pieza in componentes.keys) {
-                            piezasAsignadas[pieza] = 1;
+                          paqueteCompletoActivo = value;
+                          if (value) {
+                            componentes.keys.forEach((pieza) {
+                              if ((piezasAsignadas[pieza] ?? 0) == 0) {
+                                piezasAsignadas[pieza] = 1;
+                              }
+                            });
                           }
                         });
                       },
+                    ),
+                    if (paqueteCompletoActivo)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: TextFormField(
+                          controller: precioPaqueteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Precio Paquete Personalizado',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.price_change),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                        ),
+                      ),
+                    const Divider(),
+                    ListTile(
+                      title: const Text(
+                        'Deuda Total Calculada',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      trailing: Text(
+                        '\$${calcularDeudaTotal().toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -111,7 +182,15 @@ class _PagosScreenState extends State<PagosScreen> {
                 ),
                 ElevatedButton(
                   child: const Text('Guardar Cambios'),
-                  onPressed: () => navigator.pop(piezasAsignadas),
+                  onPressed: () {
+                    final dataToSave = {
+                      'piezas': piezasAsignadas,
+                      'precio':
+                          double.tryParse(precioPaqueteController.text) ??
+                          precioPaqueteDefault,
+                    };
+                    navigator.pop(dataToSave);
+                  },
                 ),
               ],
             );
@@ -122,16 +201,25 @@ class _PagosScreenState extends State<PagosScreen> {
 
     if (result != null) {
       try {
+        final piezas = result['piezas'] as Map<String, int>;
+        final precio = result['precio'] as double;
+
         await FirebaseFirestore.instance
             .collection('alumnos')
             .doc(alumnoActual.id)
-            .update({'piezasUniforme': result});
+            .update({
+              'piezasUniforme': piezas,
+              'precioPaqueteUniforme': precio,
+            });
         setState(() {
-          alumnoActual = alumnoActual.copyWith(piezasUniforme: result);
+          alumnoActual = alumnoActual.copyWith(
+            piezasUniforme: piezas,
+            precioPaqueteUniforme: precio,
+          );
         });
         scaffoldMessenger.showSnackBar(
           const SnackBar(
-            content: Text('Piezas actualizadas.'),
+            content: Text('Piezas y precio actualizados.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -236,10 +324,26 @@ class _PagosScreenState extends State<PagosScreen> {
       restante = precioTotal - totalPagado;
     } else if (rubro == 'Uniforme') {
       final componentes = Map<String, dynamic>.from(precioData['componentes']);
+      final precioPaqueteDefault =
+          (precioData['precioPaquete'] as num?)?.toDouble() ?? 0.0;
+      final precioPaquetePersonalizado =
+          alumnoActual.precioPaqueteUniforme ?? precioPaqueteDefault;
+
       double deudaTotal = 0;
-      (alumnoActual.piezasUniforme ?? {}).forEach((pieza, cantidad) {
-        deudaTotal += (componentes[pieza] as num? ?? 0) * (cantidad as int);
-      });
+      final piezas = alumnoActual.piezasUniforme ?? {};
+      final esPaquete = piezas.values.every((c) => (c as int) >= 1);
+
+      if (esPaquete && precioPaquetePersonalizado > 0) {
+        deudaTotal += precioPaquetePersonalizado;
+        piezas.forEach((pieza, cantidad) {
+          if ((cantidad as int) > 1)
+            deudaTotal += (componentes[pieza] as num? ?? 0) * (cantidad - 1);
+        });
+      } else {
+        piezas.forEach((pieza, cantidad) {
+          deudaTotal += (componentes[pieza] as num? ?? 0) * (cantidad as int);
+        });
+      }
       final totalPagado = pagosDeEsteRubro.fold(0.0, (sum, p) => sum + p.monto);
       restante = deudaTotal - totalPagado;
     } else if (precioData['monto'] != null) {
@@ -582,8 +686,8 @@ class _PagosScreenState extends State<PagosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: getColorForGrado(alumnoActual.grado),
         title: Text('Pagos de ${alumnoActual.nombre}'),
+        backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -593,9 +697,8 @@ class _PagosScreenState extends State<PagosScreen> {
             .collection('pagos')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
 
           final Map<String, List<Pago>> pagosPorRubro = {};
           for (var doc in snapshot.data!.docs) {
@@ -617,8 +720,7 @@ class _PagosScreenState extends State<PagosScreen> {
                     .limit(1)
                     .get(),
                 builder: (context, precioSnapshot) {
-                  if (precioSnapshot.connectionState ==
-                      ConnectionState.waiting) {
+                  if (precioSnapshot.connectionState == ConnectionState.waiting)
                     return ListTile(
                       title: Text(rubro),
                       trailing: const SizedBox(
@@ -627,14 +729,12 @@ class _PagosScreenState extends State<PagosScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     );
-                  }
                   if (precioSnapshot.data == null ||
-                      precioSnapshot.data!.docs.isEmpty) {
+                      precioSnapshot.data!.docs.isEmpty)
                     return ListTile(
                       title: Text(rubro),
                       trailing: const Text('Precio no definido'),
                     );
-                  }
 
                   final precioData =
                       precioSnapshot.data!.docs.first.data()
@@ -648,19 +748,40 @@ class _PagosScreenState extends State<PagosScreen> {
                   Color estadoColor;
                   IconData estadoIcono;
                   Widget trailingWidget;
-                  VoidCallback? onTapAction;
 
                   if (rubro == 'Uniforme') {
                     final componentes = Map<String, dynamic>.from(
                       precioData['componentes'],
                     );
+                    final precioPaqueteDefault =
+                        (precioData['precioPaquete'] as num?)?.toDouble() ??
+                        0.0;
+                    final precioPaquetePersonalizado =
+                        alumnoActual.precioPaqueteUniforme ??
+                        precioPaqueteDefault;
+
                     double deudaTotal = 0;
                     if (alumnoActual.piezasUniforme != null) {
-                      alumnoActual.piezasUniforme!.forEach((pieza, cantidad) {
-                        deudaTotal +=
-                            (componentes[pieza] as num? ?? 0) *
-                            (cantidad as int);
-                      });
+                      final piezas = alumnoActual.piezasUniforme!;
+                      final esPaquete = piezas.values.every(
+                        (c) => (c as int) >= 1,
+                      );
+
+                      if (esPaquete && precioPaquetePersonalizado > 0) {
+                        deudaTotal += precioPaquetePersonalizado;
+                        piezas.forEach((pieza, cantidad) {
+                          if ((cantidad as int) > 1)
+                            deudaTotal +=
+                                (componentes[pieza] as num? ?? 0) *
+                                (cantidad - 1);
+                        });
+                      } else {
+                        piezas.forEach((pieza, cantidad) {
+                          deudaTotal +=
+                              (componentes[pieza] as num? ?? 0) *
+                              (cantidad as int);
+                        });
+                      }
                     }
                     final restante = deudaTotal - totalPagado;
 
@@ -669,8 +790,6 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoTexto = 'Asignar Piezas';
                       estadoColor = Colors.grey;
                       estadoIcono = Icons.checkroom;
-                      onTapAction = () =>
-                          _showAssignUniformeDialog(context, componentes);
                       trailingWidget = Text(
                         estadoTexto,
                         style: TextStyle(
@@ -682,37 +801,23 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoTexto = 'Restante \$${restante.toStringAsFixed(2)}';
                       estadoColor = restante <= 0
                           ? Colors.green
-                          : (totalPagado > 0 ? Colors.blue : Colors.purple);
+                          : (totalPagado > 0 ? Colors.blue : Colors.orange);
                       estadoIcono = restante <= 0
                           ? Icons.check_circle
                           : (totalPagado > 0
                                 ? Icons.hourglass_top_outlined
-                                : Icons.hourglass_empty);
-
-                      // ✅ LÓGICA DE ONTAP CORREGIDA
-                      if (restante <= 0) {
-                        onTapAction = () => _showPaymentHistoryDialog(
-                          context,
-                          rubro,
-                          pagosDeEsteRubro,
-                        );
-                      } else {
-                        onTapAction = () => _showAddPaymentDialog(
-                          context,
-                          rubro,
-                          precioData,
-                          pagosDeEsteRubro,
-                        );
-                      }
-
+                                : Icons.hourglass_empty_rounded);
                       trailingWidget = Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            estadoTexto,
-                            style: TextStyle(
-                              color: estadoColor,
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              estadoTexto,
+                              style: TextStyle(
+                                color: estadoColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
@@ -722,8 +827,11 @@ class _PagosScreenState extends State<PagosScreen> {
                               size: 20,
                             ),
                             tooltip: 'Editar Piezas Asignadas',
-                            onPressed: () =>
-                                _showAssignUniformeDialog(context, componentes),
+                            onPressed: () => _showAssignUniformeDialog(
+                              context,
+                              componentes,
+                              precioPaqueteDefault,
+                            ),
                           ),
                         ],
                       );
@@ -736,8 +844,6 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoTexto = 'Asignar Talla';
                       estadoColor = Colors.grey;
                       estadoIcono = Icons.style_outlined;
-                      onTapAction = () =>
-                          _showAssignBataDialog(context, preciosPorTalla);
                     } else {
                       final talla = alumnoActual.tallaBata!;
                       final precioTotal =
@@ -748,26 +854,15 @@ class _PagosScreenState extends State<PagosScreen> {
                             'Pagado Total (\$${precioTotal.toStringAsFixed(2)})';
                         estadoColor = Colors.green;
                         estadoIcono = Icons.check_circle;
-                        onTapAction = () => _showPaymentHistoryDialog(
-                          context,
-                          rubro,
-                          pagosDeEsteRubro,
-                        );
                       } else {
                         estadoTexto =
                             'Restante \$${restante.toStringAsFixed(2)}';
                         estadoColor = totalPagado > 0
                             ? Colors.blue
-                            : Colors.deepPurple;
+                            : Colors.orange;
                         estadoIcono = totalPagado > 0
                             ? Icons.hourglass_top_outlined
                             : Icons.hourglass_empty;
-                        onTapAction = () => _showAddPaymentDialog(
-                          context,
-                          rubro,
-                          precioData,
-                          pagosDeEsteRubro,
-                        );
                       }
                     }
                     trailingWidget = Text(
@@ -785,11 +880,6 @@ class _PagosScreenState extends State<PagosScreen> {
                           'Pagado Total \$${precioTotal.toStringAsFixed(2)}';
                       estadoColor = Colors.green;
                       estadoIcono = Icons.check_circle;
-                      onTapAction = () => _showPaymentHistoryDialog(
-                        context,
-                        rubro,
-                        pagosDeEsteRubro,
-                      );
                     } else {
                       estadoTexto = 'Restante \$${restante.toStringAsFixed(2)}';
                       estadoColor = totalPagado > 0
@@ -798,12 +888,6 @@ class _PagosScreenState extends State<PagosScreen> {
                       estadoIcono = totalPagado > 0
                           ? Icons.hourglass_top_outlined
                           : Icons.hourglass_empty;
-                      onTapAction = () => _showAddPaymentDialog(
-                        context,
-                        rubro,
-                        precioData,
-                        pagosDeEsteRubro,
-                      );
                     }
                     trailingWidget = Text(
                       estadoTexto,
@@ -818,7 +902,78 @@ class _PagosScreenState extends State<PagosScreen> {
                     leading: Icon(estadoIcono, color: estadoColor),
                     title: Text(rubro),
                     trailing: trailingWidget,
-                    onTap: onTapAction,
+                    onTap: () {
+                      if (rubro == 'Uniforme') {
+                        final precioPaquete =
+                            (precioData['precioPaquete'] as num?)?.toDouble() ??
+                            0.0;
+                        if (alumnoActual.piezasUniforme == null ||
+                            alumnoActual.piezasUniforme!.isEmpty) {
+                          _showAssignUniformeDialog(
+                            context,
+                            Map<String, dynamic>.from(
+                              precioData['componentes'],
+                            ),
+                            precioPaquete,
+                          );
+                        } else {
+                          _showAddPaymentDialog(
+                            context,
+                            rubro,
+                            precioData,
+                            pagosDeEsteRubro,
+                          );
+                        }
+                      } else if (rubro == 'Bata') {
+                        final totalPagadoBata = pagosDeEsteRubro.fold(
+                          0.0,
+                          (sum, pago) => sum + pago.monto,
+                        );
+                        final preciosTallaBata = Map<String, dynamic>.from(
+                          precioData['preciosPorTalla'],
+                        );
+                        if (alumnoActual.tallaBata == null) {
+                          _showAssignBataDialog(context, preciosTallaBata);
+                        } else {
+                          final precioTotalBata =
+                              (preciosTallaBata[alumnoActual.tallaBata!]
+                                      as num?)
+                                  ?.toDouble() ??
+                              0.0;
+                          if (precioTotalBata - totalPagadoBata > 0) {
+                            _showAddPaymentDialog(
+                              context,
+                              rubro,
+                              precioData,
+                              pagosDeEsteRubro,
+                            );
+                          } else {
+                            _showPaymentHistoryDialog(
+                              context,
+                              rubro,
+                              pagosDeEsteRubro,
+                            );
+                          }
+                        }
+                      } else {
+                        final precioTotal = (precioData['monto'] as num)
+                            .toDouble();
+                        if (precioTotal - totalPagado > 0) {
+                          _showAddPaymentDialog(
+                            context,
+                            rubro,
+                            precioData,
+                            pagosDeEsteRubro,
+                          );
+                        } else {
+                          _showPaymentHistoryDialog(
+                            context,
+                            rubro,
+                            pagosDeEsteRubro,
+                          );
+                        }
+                      }
+                    },
                   );
                 },
               );

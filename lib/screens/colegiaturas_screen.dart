@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; // Para formatear fechas.
 import '../models/alumno.dart'; // Modelo de datos para Alumno.
 import '../models/pago.dart'; // Modelo de datos para Pago.
+import 'package:app_control_kinder_v4/utils/color_utils.dart'; // Utilidades de color.
 
 // Define el widget de la pantalla de Colegiaturas, que es un StatefulWidget.
 class ColegiaturasScreen extends StatefulWidget {
@@ -505,20 +506,40 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                 ),
               ),
               const Divider(thickness: 1), // Separador visual.
+              // 2. Obtenemos el color para el grado del alumno
               // Lista de alumnos.
               Expanded(
                 child: ListView.builder(
                   itemCount: alumnos.length,
                   itemBuilder: (context, index) {
                     final alumno = alumnos[index];
+                    var colorGrado = getColorForGrado(alumno.grado);
                     return Card(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 4,
                       ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          8.0,
+                        ), // Puedes ajustar el radio si quieres más o menos redondeado
+                        // 2. Definimos el borde superior con el color del grado
+                        side: BorderSide(
+                          color: getColorForGrado(alumno.grado),
+                          width: 1.2,
+                        ),
+                      ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          child: Text(alumno.nombre.substring(0, 1)),
+                          // 3. Aplicamos el color y un tono más claro de fondo
+                          backgroundColor: colorGrado.withOpacity(0.2),
+                          child: Text(
+                            alumno.nombre.substring(0, 1),
+                            style: TextStyle(
+                              color: colorGrado,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         title: Text(alumno.nombre),
                         subtitle: Text(alumno.grado),

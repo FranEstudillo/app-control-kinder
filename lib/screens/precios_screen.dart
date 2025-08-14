@@ -40,50 +40,55 @@ class _PreciosScreenState extends State<PreciosScreen> {
                   // Lógica para construir el formulario según el tipo de rubro
                   if (data.containsKey('monto'))
                     TextFormField(
-                      controller: (controllers['monto'] =
-                          TextEditingController(
-                              text: (data['monto'] as num).toString())),
+                      controller: (controllers['monto'] = TextEditingController(
+                        text: (data['monto'] as num).toString(),
+                      )),
                       decoration: const InputDecoration(labelText: 'Monto'),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) =>
-                          value == null || value.isEmpty ? 'Campo requerido' : null,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Campo requerido'
+                          : null,
                     )
                   else if (rubro == 'Bata' &&
                       data.containsKey('preciosPorTalla'))
-                    ...(data['preciosPorTalla'] as Map<String, dynamic>)
-                        .entries
+                    ...(data['preciosPorTalla'] as Map<String, dynamic>).entries
                         .map((entry) {
-                      return TextFormField(
-                        controller: (controllers[entry.key] =
-                            TextEditingController(
-                                text: (entry.value as num).toString())),
-                        decoration:
-                            InputDecoration(labelText: 'Talla ${entry.key}'),
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        validator: (value) => value == null || value.isEmpty
-                            ? 'Campo requerido'
-                            : null,
-                      );
-                    })
+                          return TextFormField(
+                            controller: (controllers[entry.key] =
+                                TextEditingController(
+                                  text: (entry.value as num).toString(),
+                                )),
+                            decoration: InputDecoration(
+                              labelText: 'Talla ${entry.key}',
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Campo requerido'
+                                : null,
+                          );
+                        })
                   else if (rubro == 'Uniforme' &&
                       data.containsKey('componentes'))
-                    ...(data['componentes'] as Map<String, dynamic>)
-                        .entries
+                    ...(data['componentes'] as Map<String, dynamic>).entries
                         .map((entry) {
-                      return TextFormField(
-                        controller: (controllers[entry.key] =
-                            TextEditingController(
-                                text: (entry.value as num).toString())),
-                        decoration: InputDecoration(labelText: entry.key),
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        validator: (value) => value == null || value.isEmpty
-                            ? 'Campo requerido'
-                            : null,
-                      );
-                    })
+                          return TextFormField(
+                            controller: (controllers[entry.key] =
+                                TextEditingController(
+                                  text: (entry.value as num).toString(),
+                                )),
+                            decoration: InputDecoration(labelText: entry.key),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Campo requerido'
+                                : null,
+                          );
+                        }),
                 ],
               ),
             ),
@@ -100,18 +105,19 @@ class _PreciosScreenState extends State<PreciosScreen> {
 
                   // Recolectar nuevos valores
                   if (data.containsKey('monto')) {
-                    nuevosValores['monto'] =
-                        double.parse(controllers['monto']!.text);
+                    nuevosValores['monto'] = double.parse(
+                      controllers['monto']!.text,
+                    );
                   } else if (rubro == 'Bata') {
                     final preciosPorTalla = {
                       for (var entry in controllers.entries)
-                        entry.key: double.parse(entry.value.text)
+                        entry.key: double.parse(entry.value.text),
                     };
                     nuevosValores['preciosPorTalla'] = preciosPorTalla;
                   } else if (rubro == 'Uniforme') {
                     final componentes = {
                       for (var entry in controllers.entries)
-                        entry.key: double.parse(entry.value.text)
+                        entry.key: double.parse(entry.value.text),
                     };
                     nuevosValores['componentes'] = componentes;
                   }
@@ -152,7 +158,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
           }
 
           final Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-              preciosPorGrado = {};
+          preciosPorGrado = {};
           for (var doc in snapshot.data!.docs) {
             final data = doc.data();
             final grado = data['grado'] as String?;
@@ -207,7 +213,7 @@ class _PreciosScreenState extends State<PreciosScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: detalles,
                         );
-                        icono = Icons.style;
+                        icono = Icons.checkroom;
                       } else if (rubro == 'Uniforme' &&
                           data.containsKey('componentes')) {
                         final componentes =

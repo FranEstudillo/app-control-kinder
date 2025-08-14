@@ -9,6 +9,7 @@ class Alumno {
   final String? id; // ID del documento de Firestore
   final String? tallaBata;
   final Map<String, dynamic>? piezasUniforme;
+  final double? precioPaqueteUniforme;
   final String? nombrePadre;
   final String? contactoEmergencia1;
   final String? contactoEmergencia2;
@@ -20,6 +21,7 @@ class Alumno {
     this.id,
     this.tallaBata,
     this.piezasUniforme,
+    this.precioPaqueteUniforme,
     this.nombrePadre,
     this.contactoEmergencia1,
     this.contactoEmergencia2,
@@ -29,9 +31,10 @@ class Alumno {
     String? id,
     String? nombre,
     String? grado,
-    // String? fotoUrl,
+    String? fotoUrl,
     String? tallaBata,
     Map<String, dynamic>? piezasUniforme,
+    double? precioPaqueteUniforme,
     String? nombrePadre,
     String? contactoEmergencia1,
     String? contactoEmergencia2,
@@ -40,9 +43,11 @@ class Alumno {
       id: id ?? this.id,
       nombre: nombre ?? this.nombre,
       grado: grado ?? this.grado,
-      // fotoUrl: fotoUrl ?? this.fotoUrl,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
       tallaBata: tallaBata ?? this.tallaBata,
       piezasUniforme: piezasUniforme ?? this.piezasUniforme,
+      precioPaqueteUniforme:
+          precioPaqueteUniforme ?? this.precioPaqueteUniforme,
       nombrePadre: nombrePadre ?? this.nombrePadre,
       contactoEmergencia1: contactoEmergencia1 ?? this.contactoEmergencia1,
       contactoEmergencia2: contactoEmergencia2 ?? this.contactoEmergencia2,
@@ -57,6 +62,7 @@ class Alumno {
       'fotoUrl': fotoUrl,
       'tallaBata': tallaBata,
       'piezasUniforme': piezasUniforme,
+      'precioPaqueteUniforme': precioPaqueteUniforme,
       'nombrePadre': nombrePadre,
       'contactoEmergencia1': contactoEmergencia1,
       'contactoEmergencia2': contactoEmergencia2,
@@ -73,6 +79,8 @@ class Alumno {
       fotoUrl: data['fotoUrl'],
       tallaBata: data['tallaBata'],
       piezasUniforme: data['piezasUniforme'],
+      precioPaqueteUniforme: (data['precioPaqueteUniforme'] as num?)
+          ?.toDouble(),
       nombrePadre: data['nombrePadre'],
       contactoEmergencia1: data['contactoEmergencia1'],
       contactoEmergencia2: data['contactoEmergencia2'],
