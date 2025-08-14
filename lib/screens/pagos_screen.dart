@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/alumno.dart';
 import '../models/pago.dart';
+//utils
+import '../utils/color_utils.dart';
 
 class PagosScreen extends StatefulWidget {
   final Alumno alumno;
@@ -687,7 +689,7 @@ class _PagosScreenState extends State<PagosScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Pagos de ${alumnoActual.nombre}'),
-        backgroundColor: Colors.amber,
+        backgroundColor: getColorForGrado(alumnoActual.grado),
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

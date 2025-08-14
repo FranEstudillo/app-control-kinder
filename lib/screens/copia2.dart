@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/alumno.dart';
 import '../models/pago.dart';
 //utils
-import '../utils/color_utils.dart';
+//import '../utils/color_utils.dart';
 
 class PagosScreen extends StatefulWidget {
   final Alumno alumno;
