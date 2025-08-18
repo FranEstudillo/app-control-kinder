@@ -16,86 +16,17 @@ class ColegiaturasScreen extends StatefulWidget {
 
 // Define el estado para ColegiaturasScreen.
 class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
-  /*** 
-  // Muestra un diálogo con el historial de pagos de colegiatura de un alumno específico.
-  Future<void> _mostrarHistorialPagos(
-    String alumnoId,
-    String alumnoNombre,
-  ) async {
-    // 1. Obtiene el historial de pagos de la colección 'pagos' del alumno.
-    final pagosSnapshot = await FirebaseFirestore.instance
-        .collection('alumnos')
-        .doc(alumnoId)
-        .collection('pagos')
-        .where(
-          'rubro',
-          isEqualTo: 'Colegiatura',
-        ) // Filtra solo por colegiaturas.
-        .orderBy('fechaPago', descending: true) // Ordena los pagos por fecha.
-        .get();
+  // --- VARIABLES PARA EL FILTRO ---
+  String? _filtroGrado;
+  final List<String> _grados = ['Maternal', 'Kínder 1', 'Kínder 2', 'Kínder 3'];
 
-    // 2. Convierte los documentos de Firestore a una lista de objetos Pago.
-    final pagos = pagosSnapshot.docs
-        .map((doc) => Pago.fromFirestore(doc))
-        .toList();
-
-    // 3. Comprueba si el widget todavía está montado antes de mostrar el diálogo para evitar errores.
-    if (!mounted) return;
-
-    // 4. Muestra el diálogo con la lista de pagos.
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Historial de Pagos de $alumnoNombre'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: pagos.isEmpty
-              ? const Text('No hay pagos registrados para este rubro.')
-              : ListView.builder(
-                  // Muestra los pagos en una lista.
-                  shrinkWrap: true,
-                  itemCount: pagos.length,
-                  itemBuilder: (context, index) {
-                    final pago = pagos[index];
-                    // Formatea la fecha del pago para mostrarla en formato dd/MM/yyyy.
-                    final fechaFormateada = DateFormat(
-                      'dd/MM/yyyy',
-                    ).format(pago.fechaPago.toDate());
-                    return ListTile(
-                      leading: const Icon(Icons.receipt_long),
-                      title: Text(
-                        'Monto: \${pago.monto.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'Fecha: $fechaFormateada\nMétodo: ${pago.metodoPago}',
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cerrar'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  
-  */
   // Muestra un popup para registrar un nuevo pago de colegiatura.
   Future<bool?> _mostrarPopupRegistrarPago() async {
     return showDialog<bool>(
       context: context,
-      barrierDismissible:
-          false, // El usuario no puede cerrar el diálogo tocando fuera de él.
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        // Clave para el formulario.
         final formKey = GlobalKey<FormState>();
-        // Listas para los menús desplegables.
         final List<String> grados = [
           'Maternal',
           'Kínder 1',
@@ -103,7 +34,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
           'Kínder 3',
         ];
         final List<String> metodosDePago = ['Efectivo', 'Tarjeta'];
-        // Variables para almacenar los datos del formulario.
         String? gradoSeleccionado;
         Alumno? alumnoSeleccionado;
         List<Alumno> alumnosDelGrado = [];
@@ -113,14 +43,11 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
         DateTime? fechaSeleccionada;
         String? metodoSeleccionado;
 
-        // Referencias para Navigator y ScaffoldMessenger para usarlas de forma segura en contextos asíncronos.
         final navigator = Navigator.of(context);
         final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-        // Usa StatefulBuilder para manejar el estado dentro del diálogo.
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            // Carga los alumnos de un grado específico desde Firestore.
             Future<void> cargarAlumnos(String grado) async {
               setDialogState(() {
                 cargandoAlumnos = true;
@@ -145,11 +72,9 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
-                  // Permite hacer scroll si el contenido es muy largo.
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Menú desplegable para seleccionar el grado.
                       DropdownButtonFormField<String>(
                         value: gradoSeleccionado,
                         hint: const Text('Seleccione un grado'),
@@ -168,22 +93,18 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         onChanged: (newValue) {
                           if (newValue != null) {
                             setDialogState(() => gradoSeleccionado = newValue);
-                            cargarAlumnos(
-                              newValue,
-                            ); // Carga los alumnos del grado seleccionado.
+                            cargarAlumnos(newValue);
                           }
                         },
                         validator: (value) =>
                             value == null ? 'Seleccione un grado' : null,
                       ),
                       const SizedBox(height: 16),
-                      // Muestra un indicador de carga mientras se obtienen los alumnos.
                       if (cargandoAlumnos)
                         const Padding(
                           padding: EdgeInsets.all(8.0),
                           child: CircularProgressIndicator(),
                         )
-                      // Menú desplegable para seleccionar el alumno.
                       else if (gradoSeleccionado != null)
                         DropdownButtonFormField<Alumno>(
                           value: alumnoSeleccionado,
@@ -214,9 +135,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                               value == null ? 'Seleccione un alumno' : null,
                         ),
                       const SizedBox(height: 16),
-                      // Campos de texto y menús que aparecen cuando se selecciona un alumno.
                       if (alumnoSeleccionado != null) ...[
-                        // Campo para ingresar el monto.
                         TextFormField(
                           controller: montoController,
                           decoration: const InputDecoration(
@@ -237,7 +156,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        // Campo para seleccionar la fecha de pago.
                         TextFormField(
                           controller: fechaController,
                           decoration: const InputDecoration(
@@ -245,10 +163,8 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                             prefixIcon: Icon(Icons.calendar_today),
                             border: OutlineInputBorder(),
                           ),
-                          readOnly:
-                              true, // El campo no es editable directamente.
+                          readOnly: true,
                           onTap: () async {
-                            // Muestra un selector de fecha al tocar.
                             final pickedDate = await showDatePicker(
                               context: context,
                               initialDate: DateTime.now(),
@@ -269,7 +185,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                               : null,
                         ),
                         const SizedBox(height: 16),
-                        // Menú desplegable para seleccionar el método de pago.
                         DropdownButtonFormField<String>(
                           value: metodoSeleccionado,
                           decoration: const InputDecoration(
@@ -298,20 +213,15 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                 ),
               ),
               actions: [
-                // Botón para cancelar el registro.
                 TextButton(
                   child: const Text('Cancelar'),
-                  onPressed: () =>
-                      navigator.pop(false), // Cierra el popup y devuelve false.
+                  onPressed: () => navigator.pop(false),
                 ),
-                // Botón para guardar el pago.
                 ElevatedButton(
                   onPressed: alumnoSeleccionado == null
-                      ? null // El botón está deshabilitado si no se ha seleccionado un alumno.
+                      ? null
                       : () async {
-                          // Valida el formulario antes de guardar.
                           if (formKey.currentState!.validate()) {
-                            // Crea un mapa con los datos del pago.
                             final pagoData = {
                               'rubro': 'Colegiatura',
                               'monto': double.parse(montoController.text),
@@ -322,16 +232,13 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                               'tipo': 'total',
                             };
                             try {
-                              // Guarda el pago en la subcolección 'pagos' del alumno.
                               await FirebaseFirestore.instance
                                   .collection('alumnos')
                                   .doc(alumnoSeleccionado!.id)
                                   .collection('pagos')
                                   .add(pagoData);
                               if (mounted) {
-                                navigator.pop(
-                                  true,
-                                ); // Cierra el popup y devuelve true.
+                                navigator.pop(true);
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text('Pago guardado.'),
@@ -340,7 +247,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                                 );
                               }
                             } catch (e) {
-                              // Muestra un mensaje de error si falla el guardado.
                               if (mounted) {
                                 scaffoldMessenger.showSnackBar(
                                   SnackBar(
@@ -362,9 +268,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
     );
   }
 
-  // Obtiene los datos de las colegiaturas desde Firestore.
   Future<Map<String, dynamic>> _getDatosColegiaturas() async {
-    // Obtiene todos los alumnos.
     final alumnosSnapshot = await FirebaseFirestore.instance
         .collection('alumnos')
         .orderBy('nombre')
@@ -373,21 +277,18 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
         .map((doc) => Alumno.fromFirestore(doc))
         .toList();
 
-    // Inicializa los totales.
     double totalGeneral = 0;
     double totalEfectivo = 0;
     double totalTarjeta = 0;
 
-    // Obtiene todos los pagos de colegiatura de todos los alumnos.
     final pagosSnapshot = await FirebaseFirestore.instance
-        .collectionGroup(
-          'pagos',
-        ) // Busca en la subcolección 'pagos' de todos los documentos.
+        .collectionGroup('pagos')
         .where('rubro', isEqualTo: 'Colegiatura')
         .get();
-    // Calcula los totales.
     for (final pagoDoc in pagosSnapshot.docs) {
-      final pago = Pago.fromFirestore(pagoDoc);
+      final pago = Pago.fromFirestore(
+        pagoDoc as QueryDocumentSnapshot<Map<String, dynamic>>,
+      );
       totalGeneral += pago.monto;
       if (pago.metodoPago == 'Efectivo') {
         totalEfectivo += pago.monto;
@@ -396,7 +297,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
       }
     }
 
-    // Devuelve un mapa con los datos.
     return {
       'alumnos': alumnos,
       'totalGeneral': totalGeneral,
@@ -405,50 +305,100 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
     };
   }
 
+  void _showColegiaturasDetalleDialog(
+    BuildContext context,
+    Alumno alumno,
+    List<Pago> pagos,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Historial de Colegiaturas\n${alumno.nombre}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: 11,
+              itemBuilder: (context, index) {
+                final numeroDePago = index + 1;
+                Pago? pagoCorrespondiente;
+
+                if (index < pagos.length) {
+                  pagoCorrespondiente = pagos[index];
+                }
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text('$numeroDePago'),
+                    backgroundColor: pagoCorrespondiente != null
+                        ? Colors.green
+                        : Colors.grey[300],
+                    foregroundColor: pagoCorrespondiente != null
+                        ? Colors.white
+                        : Colors.grey[600],
+                  ),
+                  title: Text('Colegiatura $numeroDePago'),
+                  subtitle: pagoCorrespondiente != null
+                      ? Text(
+                          'Pagado el ${DateFormat('dd/MM/yyyy').format(pagoCorrespondiente.fechaPago.toDate())} (${pagoCorrespondiente.metodoPago})',
+                          style: const TextStyle(fontSize: 12),
+                        )
+                      : const Text(
+                          'Pendiente',
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cerrar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    Query<Map<String, dynamic>> queryAlumnos = FirebaseFirestore.instance
+        .collection('alumnos')
+        .orderBy('nombre');
+
+    if (_filtroGrado != null) {
+      queryAlumnos = queryAlumnos.where('grado', isEqualTo: _filtroGrado);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Colegiaturas'),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blue.shade900,
         foregroundColor: Colors.white,
       ),
-      // FutureBuilder para construir la UI basada en los datos asíncronos.
-      body: FutureBuilder<Map<String, dynamic>>(
-        future:
-            _getDatosColegiaturas(), // Llama a la función que obtiene los datos.
-        builder: (context, snapshot) {
-          // Muestra un indicador de carga mientras se esperan los datos.
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // Muestra un mensaje de error si ocurre un problema.
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Error al cargar los datos: ${snapshot.error}'),
-            );
-          }
-          // Muestra un mensaje si no hay datos.
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay datos disponibles.'));
-          }
+      body: Column(
+        children: [
+          FutureBuilder<Map<String, dynamic>>(
+            future: _getDatosColegiaturas(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const SizedBox(
+                  height: 250,
+                  child: Center(child: CircularProgressIndicator()),
+                );
 
-          // Extrae los datos del snapshot.
-          final datos = snapshot.data!;
-          final alumnos = datos['alumnos'] as List<Alumno>;
-          final totalGeneral = datos['totalGeneral'] as double;
-          final totalEfectivo = datos['totalEfectivo'] as double;
-          final totalTarjeta = datos['totalTarjeta'] as double;
+              final datos = snapshot.data!;
+              final totalGeneral = datos['totalGeneral'] as double;
+              final totalEfectivo = datos['totalEfectivo'] as double;
+              final totalTarjeta = datos['totalTarjeta'] as double;
 
-          // Construye la UI principal.
-          return Column(
-            children: [
-              // Sección de tarjetas con los totales.
-              Padding(
+              return Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
-                    // Tarjeta para el total recaudado.
                     Card(
                       color: Colors.blue[50],
                       child: ListTile(
@@ -458,7 +408,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total Recaudado (Colegiaturas)'),
                         trailing: Text(
-                          totalGeneral.toStringAsFixed(2),
+                          '\$${totalGeneral.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -466,7 +416,6 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                       ),
                     ),
-                    // Tarjeta para el total en efectivo.
                     Card(
                       color: Colors.orange[50],
                       child: ListTile(
@@ -476,7 +425,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total en efectivo'),
                         trailing: Text(
-                          totalEfectivo.toStringAsFixed(2),
+                          '\$${totalEfectivo.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -484,17 +433,16 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                       ),
                     ),
-                    // Tarjeta para el total en tarjeta.
                     Card(
-                      color: Colors.blueGrey[50],
+                      color: Colors.indigo[50],
                       child: ListTile(
                         leading: const Icon(
                           Icons.credit_card,
-                          color: Colors.blueGrey,
+                          color: Colors.indigo,
                         ),
                         title: const Text('Total en tarjeta'),
                         trailing: Text(
-                          totalTarjeta.toStringAsFixed(2),
+                          '\$${totalTarjeta.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -504,12 +452,62 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                     ),
                   ],
                 ),
-              ),
-              const Divider(thickness: 1), // Separador visual.
-              // 2. Obtenemos el color para el grado del alumno
-              // Lista de alumnos.
-              Expanded(
-                child: ListView.builder(
+              );
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _filtroGrado,
+                    hint: const Text('Filtrar alumnos por grado'),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.filter_list),
+                    ),
+                    items: _grados
+                        .map(
+                          (grado) => DropdownMenuItem(
+                            value: grado,
+                            child: Text(grado),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (newValue) {
+                      setState(() => _filtroGrado = newValue);
+                    },
+                  ),
+                ),
+                if (_filtroGrado != null)
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Limpiar filtro',
+                    onPressed: () {
+                      setState(() => _filtroGrado = null);
+                    },
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: queryAlumnos.snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                  return const Center(
+                    child: Text('No hay alumnos que coincidan con el filtro.'),
+                  );
+
+                final alumnos = snapshot.data!.docs
+                    .map((doc) => Alumno.fromFirestore(doc))
+                    .toList();
+
+                return ListView.builder(
                   itemCount: alumnos.length,
                   itemBuilder: (context, index) {
                     final alumno = alumnos[index];
@@ -520,10 +518,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         vertical: 4,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          8.0,
-                        ), // Puedes ajustar el radio si quieres más o menos redondeado
-                        // 2. Definimos el borde superior con el color del grado
+                        borderRadius: BorderRadius.circular(8.0),
                         side: BorderSide(
                           color: getColorForGrado(alumno.grado),
                           width: 1.2,
@@ -531,84 +526,77 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          // 3. Aplicamos el color y un tono más claro de fondo
                           backgroundColor: colorGrado.withOpacity(0.2),
                           child: Text(
                             alumno.nombre.substring(0, 1),
-                            style: TextStyle(
-                              color: colorGrado,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(color: colorGrado),
                           ),
                         ),
                         title: Text(alumno.nombre),
                         subtitle: Text(alumno.grado),
-                        // StreamBuilder para mostrar el número de pagos en tiempo real.-m
-                        trailing: StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('alumnos')
-                              .doc(alumno.id)
-                              .collection('pagos')
-                              .where('rubro', isEqualTo: 'Colegiatura')
-                              .snapshots(), // Escucha los cambios en los pagos.
-                          builder: (context, pagoSnapshot) {
-                            if (pagoSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              );
-                            }
-                            final pagosContados =
-                                pagoSnapshot.data?.docs.length ?? 0;
-                            // Chip que muestra el conteo de pagos y abre el historial al tocarlo.
-                            return GestureDetector(
-                              // onTap: () {
-                              //   final alumnoId = alumno.id;
-                              //   final alumnoNombre = alumno.nombre;
-                              //   if (alumnoId != null && alumnoNombre != null) {
-                              //     _mostrarHistorialPagos(
-                              //       alumnoId,
-                              //       alumnoNombre,
-                              //     );
-                              //   }
-                              // },
-                              child: Chip(
-                                label: Text('Pagos: $pagosContados / 11'),
-                                backgroundColor: pagosContados >= 11
-                                    ? Colors
-                                          .green[100] // Verde si está completo.
-                                    : Colors
-                                          .amber[100], // Ámbar si está incompleto.
-                              ),
-                            );
-                          },
-                        ),
+                        trailing:
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('alumnos')
+                                  .doc(alumno.id)
+                                  .collection('pagos')
+                                  .where('rubro', isEqualTo: 'Colegiatura')
+                                  .orderBy('fechaPago', descending: false)
+                                  .snapshots(),
+                              builder: (context, pagoSnapshot) {
+                                if (pagoSnapshot.connectionState ==
+                                    ConnectionState.waiting)
+                                  return const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  );
+
+                                final pagos =
+                                    pagoSnapshot.data?.docs
+                                        .map((doc) => Pago.fromFirestore(doc))
+                                        .toList() ??
+                                    [];
+                                final pagosContados = pagos.length;
+
+                                return InkWell(
+                                  onTap: () {
+                                    _showColegiaturasDetalleDialog(
+                                      context,
+                                      alumno,
+                                      pagos,
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Chip(
+                                    label: Text('Pagos: $pagosContados / 11'),
+                                    backgroundColor: pagosContados >= 11
+                                        ? Colors.green[100]
+                                        : Colors.amber[100],
+                                  ),
+                                );
+                              },
+                            ),
                       ),
                     );
                   },
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      // Botón flotante para registrar un nuevo pago.
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Muestra el popup y actualiza el estado si se realizó un cambio.
           final huboCambios = await _mostrarPopupRegistrarPago();
           if (huboCambios == true) {
-            setState(
-              () {},
-            ); // Vuelve a construir el widget para reflejar los cambios.
+            setState(() {});
           }
         },
         tooltip: 'Registrar Pago de Colegiatura',
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blue.shade900,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
