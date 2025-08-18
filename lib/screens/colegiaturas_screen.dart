@@ -20,6 +20,16 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
   String? _filtroGrado;
   final List<String> _grados = ['Maternal', 'Kínder 1', 'Kínder 2', 'Kínder 3'];
 
+  // ✅ 1. DECLARAMOS LA VARIABLE PARA GUARDAR EL FUTURE.
+  late Future<Map<String, dynamic>> _datosColegiaturasFuture;
+
+  // ✅ 2. AÑADIMOS EL MÉTODO initState PARA INICIALIZAR LA VARIABLE UNA SOLA VEZ.
+  @override
+  void initState() {
+    super.initState();
+    _datosColegiaturasFuture = _getDatosColegiaturas();
+  }
+
   // Muestra un popup para registrar un nuevo pago de colegiatura.
   Future<bool?> _mostrarPopupRegistrarPago() async {
     return showDialog<bool>(
@@ -382,13 +392,21 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
       body: Column(
         children: [
           FutureBuilder<Map<String, dynamic>>(
-            future: _getDatosColegiaturas(),
+            // ✅ 3. USA LA VARIABLE DEL ESTADO EN LUGAR DE LLAMAR A LA FUNCIÓN DIRECTAMENTE.
+            future: _datosColegiaturasFuture,
             builder: (context, snapshot) {
-              if (!snapshot.hasData)
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
                   height: 250,
                   child: Center(child: CircularProgressIndicator()),
                 );
+              }
+              if (snapshot.hasError) {
+                return const Center(child: Text('Error al cargar los datos'));
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No hay datos disponibles'));
+              }
 
               final datos = snapshot.data!;
               final totalGeneral = datos['totalGeneral'] as double;
@@ -496,12 +514,14 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: queryAlumnos.snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting)
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(
                     child: Text('No hay alumnos que coincidan con el filtro.'),
                   );
+                }
 
                 final alumnos = snapshot.data!.docs
                     .map((doc) => Alumno.fromFirestore(doc))
@@ -545,7 +565,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                                   .snapshots(),
                               builder: (context, pagoSnapshot) {
                                 if (pagoSnapshot.connectionState ==
-                                    ConnectionState.waiting)
+                                    ConnectionState.waiting) {
                                   return const SizedBox(
                                     width: 20,
                                     height: 20,
@@ -553,6 +573,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                                       strokeWidth: 2,
                                     ),
                                   );
+                                }
 
                                 final pagos =
                                     pagoSnapshot.data?.docs
@@ -592,7 +613,10 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
         onPressed: () async {
           final huboCambios = await _mostrarPopupRegistrarPago();
           if (huboCambios == true) {
-            setState(() {});
+            setState(() {
+              // ✅ 4. VUELVE A EJECUTAR LA CONSULTA SOLO CUANDO HAYA CAMBIOS.
+              _datosColegiaturasFuture = _getDatosColegiaturas();
+            });
           }
         },
         tooltip: 'Registrar Pago de Colegiatura',
