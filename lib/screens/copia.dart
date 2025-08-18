@@ -40,9 +40,9 @@ class _PagosScreenState extends State<PagosScreen> {
     Map<String, int> piezasAsignadas = (alumnoActual.piezasUniforme ?? {}).map(
       (key, value) => MapEntry(key, value as int),
     );
-    componentes.keys.forEach((pieza) {
+    for (var pieza in componentes.keys) {
       piezasAsignadas.putIfAbsent(pieza, () => 0);
-    });
+    }
 
     final precioPaqueteController = TextEditingController(
       text: (alumnoActual.precioPaqueteUniforme ?? precioPaqueteDefault)
@@ -122,7 +122,7 @@ class _PagosScreenState extends State<PagosScreen> {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                     const Divider(),
                     SwitchListTile(
                       title: const Text('Aplicar Precio Paquete'),
@@ -134,11 +134,11 @@ class _PagosScreenState extends State<PagosScreen> {
                         setDialogState(() {
                           paqueteCompletoActivo = value;
                           if (value) {
-                            componentes.keys.forEach((pieza) {
+                            for (var pieza in componentes.keys) {
                               if ((piezasAsignadas[pieza] ?? 0) == 0) {
                                 piezasAsignadas[pieza] = 1;
                               }
-                            });
+                            }
                           }
                         });
                       },
@@ -336,8 +336,9 @@ class _PagosScreenState extends State<PagosScreen> {
       if (esPaquete && precioPaquetePersonalizado > 0) {
         deudaTotal += precioPaquetePersonalizado;
         piezas.forEach((pieza, cantidad) {
-          if ((cantidad as int) > 1)
+          if ((cantidad as int) > 1) {
             deudaTotal += (componentes[pieza] as num? ?? 0) * (cantidad - 1);
+          }
         });
       } else {
         piezas.forEach((pieza, cantidad) {
@@ -697,8 +698,9 @@ class _PagosScreenState extends State<PagosScreen> {
             .collection('pagos')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final Map<String, List<Pago>> pagosPorRubro = {};
           for (var doc in snapshot.data!.docs) {
@@ -720,7 +722,8 @@ class _PagosScreenState extends State<PagosScreen> {
                     .limit(1)
                     .get(),
                 builder: (context, precioSnapshot) {
-                  if (precioSnapshot.connectionState == ConnectionState.waiting)
+                  if (precioSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return ListTile(
                       title: Text(rubro),
                       trailing: const SizedBox(
@@ -729,12 +732,14 @@ class _PagosScreenState extends State<PagosScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     );
+                  }
                   if (precioSnapshot.data == null ||
-                      precioSnapshot.data!.docs.isEmpty)
+                      precioSnapshot.data!.docs.isEmpty) {
                     return ListTile(
                       title: Text(rubro),
                       trailing: const Text('Precio no definido'),
                     );
+                  }
 
                   final precioData =
                       precioSnapshot.data!.docs.first.data()
@@ -770,10 +775,11 @@ class _PagosScreenState extends State<PagosScreen> {
                       if (esPaquete && precioPaquetePersonalizado > 0) {
                         deudaTotal += precioPaquetePersonalizado;
                         piezas.forEach((pieza, cantidad) {
-                          if ((cantidad as int) > 1)
+                          if ((cantidad as int) > 1) {
                             deudaTotal +=
                                 (componentes[pieza] as num? ?? 0) *
                                 (cantidad - 1);
+                          }
                         });
                       } else {
                         piezas.forEach((pieza, cantidad) {

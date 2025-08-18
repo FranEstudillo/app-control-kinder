@@ -296,9 +296,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
         .where('rubro', isEqualTo: 'Colegiatura')
         .get();
     for (final pagoDoc in pagosSnapshot.docs) {
-      final pago = Pago.fromFirestore(
-        pagoDoc as QueryDocumentSnapshot<Map<String, dynamic>>,
-      );
+      final pago = Pago.fromFirestore(pagoDoc);
       totalGeneral += pago.monto;
       if (pago.metodoPago == 'Efectivo') {
         totalEfectivo += pago.monto;
@@ -340,13 +338,13 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
 
                 return ListTile(
                   leading: CircleAvatar(
-                    child: Text('$numeroDePago'),
                     backgroundColor: pagoCorrespondiente != null
                         ? Colors.green
                         : Colors.grey[300],
                     foregroundColor: pagoCorrespondiente != null
                         ? Colors.white
                         : Colors.grey[600],
+                    child: Text('$numeroDePago'),
                   ),
                   title: Text('Colegiatura $numeroDePago'),
                   subtitle: pagoCorrespondiente != null
