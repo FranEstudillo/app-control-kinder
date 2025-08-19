@@ -318,6 +318,19 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
     Alumno alumno,
     List<Pago> pagos,
   ) {
+    final List<String> meses = [
+      'SEP',
+      'OCT',
+      'NOV',
+      'DIC',
+      'ENE',
+      'FEB',
+      'MAR',
+      'ABR',
+      'MAY',
+      'JUN',
+      'JUL',
+    ];
     showDialog(
       context: context,
       builder: (context) {
@@ -327,9 +340,11 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,
-              itemCount: 11,
+              itemCount:
+                  meses.length, // Se usa la longitud de la lista de meses
               itemBuilder: (context, index) {
-                final numeroDePago = index + 1;
+                final mes =
+                    meses[index]; // Obtiene el nombre del mes de la lista
                 Pago? pagoCorrespondiente;
 
                 if (index < pagos.length) {
@@ -344,9 +359,9 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                     foregroundColor: pagoCorrespondiente != null
                         ? Colors.white
                         : Colors.grey[600],
-                    child: Text('$numeroDePago'),
+                    child: Text('${index + 1}'), // Aún puedes mostrar el número
                   ),
-                  title: Text('Colegiatura $numeroDePago'),
+                  title: Text('Colegiatura de $mes'), // Usa el nombre del mes
                   subtitle: pagoCorrespondiente != null
                       ? Text(
                           'Pagado el ${DateFormat('dd/MM/yyyy').format(pagoCorrespondiente.fechaPago.toDate())} (${pagoCorrespondiente.metodoPago})',

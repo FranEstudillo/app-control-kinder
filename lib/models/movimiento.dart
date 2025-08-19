@@ -8,6 +8,7 @@ class Movimiento {
   final String fuente;
   final String tipo; // 'ingreso' o 'gasto'
   final String rubro;
+  final String? nombreAlumno; // ✅ Nueva propiedad
 
   Movimiento({
     required this.id,
@@ -16,5 +17,6 @@ class Movimiento {
     required this.fuente,
     required this.tipo,
     required this.rubro,
+    this.nombreAlumno, // ✅ Nuevo parámetro opcional en el constructor
   });
 }

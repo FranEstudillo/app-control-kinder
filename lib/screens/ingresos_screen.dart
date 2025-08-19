@@ -1,3 +1,4 @@
+import 'package:app_control_kinder_v4/models/alumno.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/pago.dart';
@@ -442,6 +443,9 @@ class _PagosPorRubro extends StatelessWidget {
           .where('rubro', isEqualTo: rubro)
           .get();
       for (final pagoDoc in pagosSnapshot.docs) {
+        final alumnoNombre =
+            alumnoDoc.data()['nombre']
+                as String; // Obtiene el nombre del alumno
         final pago = Pago.fromFirestore(pagoDoc);
         // ✅ AÑADE 'rubro: pago.rubro'
         movimientos.add(
@@ -452,6 +456,7 @@ class _PagosPorRubro extends StatelessWidget {
             fuente: pago.metodoPago,
             tipo: 'ingreso',
             rubro: pago.rubro,
+            nombreAlumno: alumnoNombre, // ✅ Añade el nombre del alumno
           ),
         );
         totalIngresos += pago.monto;
@@ -479,6 +484,7 @@ class _PagosPorRubro extends StatelessWidget {
           fuente: gasto['fuente'],
           tipo: 'gasto',
           rubro: gasto['rubro'],
+          nombreAlumno: '', // ✅ No hay alumno para los gastos
         ),
       );
       totalGastos += montoGasto;
@@ -604,7 +610,7 @@ class _PagosPorRubro extends StatelessWidget {
                           ),
                         ),
                         subtitle: Text(
-                          '$fechaFormateada - ${movimiento.fuente}',
+                          '$fechaFormateada - ${movimiento.fuente} - ${movimiento.nombreAlumno}',
                         ),
                         trailing: esIngreso
                             ? null
