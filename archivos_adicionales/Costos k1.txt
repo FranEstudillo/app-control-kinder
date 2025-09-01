@@ -1,0 +1,32 @@
+Costos k1
+Inscripción $500
+Colegiatura $900
+Material de clase durante ciclo escolar $360
+Libros $1,350
+
+
+
+Costos k2
+Inscripción $500
+Colegiatura $900
+Material de clase durante ciclo escolar $360
+Libros $1,350
+
+
+Costos k3
+Inscripción $500
+Colegiatura $900
+Material de clase durante ciclo escolar $360
+Libros $1,700
+
+
+Costos maternal 
+Inscripción gratis
+Colegiatura $1,500
+Material de clase durante ciclo escolar $360
+Libros $830
+
+
+Batas 
+ch $160 M   $170  *G $180
+

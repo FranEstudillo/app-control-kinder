@@ -1,0 +1,14 @@
+## Módulos y Tareas
+Módulo de Alumnos: La tarea es clara. Se trata de implementar una función de edición (CRUD: Update) que actualmente no existe. La idea del modal de confirmación es una excelente práctica para mejorar la experiencia de usuario.
+
+Módulo de Ingresos: Aquí hay varias tareas:
+
+Crear Gastos: Implementar la funcionalidad del botón de "Gastos" para registrar egresos simples (monto y fuente).
+
+Editar Gastos: Añadir la capacidad de modificar un gasto ya registrado.
+
+Validación de Fondos: Esta es la tarea más compleja y crítica. Requiere leer el total actual de una fuente (ej. "efectivo") antes de guardar un gasto para asegurar que no se generen saldos negativos.
+
+
+
+Módulo de Colegiaturas (Nuevo): Este es el desarrollo más grande. Aunque la UI se reutilizará, la lógica es nueva. La parte clave es la necesidad de asociar un pago a un alumno específico, lo que implica leer la lista de alumnos de Firebase para mostrarla en el popup.
