@@ -122,19 +122,24 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
 
                       child: ListTile(
                         leading: CircleAvatar(
-                          // 3. Aplicamos el color y un tono más claro de fondo
+                          radius: 24,
                           backgroundColor: colorGrado.withOpacity(0.2),
-                          child: Text(
-                            alumno.nombre.substring(0, 1),
-                            style: TextStyle(
-                              color: colorGrado,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          backgroundImage: alumno.fotoUrl != null
+                              ? NetworkImage(alumno.fotoUrl!)
+                              : null,
+                          child: alumno.fotoUrl == null
+                              ? Text(
+                                  alumno.nombre.substring(0, 1),
+                                  style: TextStyle(
+                                    color: colorGrado,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 24,
+                                  ),
+                                )
+                              : null,
                         ),
                         title: Text(alumno.nombre),
                         subtitle: Text(alumno.grado),
-
                         onTap: () {
                           Navigator.push(
                             context,

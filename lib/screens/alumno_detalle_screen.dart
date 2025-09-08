@@ -5,9 +5,11 @@ import 'package:app_control_kinder_v4/models/alumno.dart';
 import 'package:app_control_kinder_v4/screens/pagos_screen.dart';
 //firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
-//import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 //utils
 import 'package:app_control_kinder_v4/utils/color_utils.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 // 2. Creamos la nueva pantalla para mostrar los detalles del alumno.
 class AlumnoDetalleScreen extends StatefulWidget {
@@ -43,6 +45,19 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
         TextEditingController(text: alumno.contactoEmergencia2);
     String? gradoSeleccionado = alumno.grado;
 
+    File? imagenSeleccionada;
+    bool cargandoFoto = false;
+
+    Future<void> _pickImage(StateSetter setDialogState) async {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setDialogState(() {
+          imagenSeleccionada = File(pickedFile.path);
+        });
+      }
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -54,6 +69,42 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // --- FOTO DEL ALUMNO ---
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage: imagenSeleccionada != null
+                              ? FileImage(imagenSeleccionada!)
+                              : (alumno.fotoUrl != null
+                                        ? NetworkImage(alumno.fotoUrl!)
+                                        : null)
+                                    as ImageProvider?,
+                          child:
+                              (imagenSeleccionada == null &&
+                                  alumno.fotoUrl == null)
+                              ? const Icon(Icons.person, size: 40)
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: () => _pickImage(setDialogState),
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.blue.shade900,
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: nombreController,
                       decoration: const InputDecoration(
@@ -111,32 +162,41 @@ class _AlumnoDetalleScreenState extends State<AlumnoDetalleScreen> {
                   child: const Text("Cancelar"),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-
-                // ESTE ES EL BOTÓN "GUARDAR" QUE YA USA LA VARIABLE CORRECTA
-                // En el onPressed del ElevatedButton de tu popup de edición
                 ElevatedButton(
-                  child: const Text("Guardar"),
-                  onPressed: () async {
-                    // 1. Actualizamos únicamente el documento del alumno (esto es lo único necesario)
-                    await FirebaseFirestore.instance
-                        .collection('alumnos')
-                        .doc(alumnoMostrado.id)
-                        .update({
-                          'nombre': nombreController.text,
-                          'grado': gradoSeleccionado,
-                          'nombrePadre': nombrePadreController.text,
-                          'contactoEmergencia1':
-                              contactoEmergencia1Controller.text,
-                          'contactoEmergencia2':
-                              contactoEmergencia2Controller.text,
-                        });
-
-                    // 2. Cerramos el popup
-                    Navigator.of(context).pop();
-
-                    // 3. Cerramos la pantalla de detalle y enviamos 'true' como señal de éxito
-                    Navigator.of(context).pop(true);
-                  },
+                  child: cargandoFoto
+                      ? const CircularProgressIndicator()
+                      : const Text("Guardar"),
+                  onPressed: cargandoFoto
+                      ? null
+                      : () async {
+                          setDialogState(() => cargandoFoto = true);
+                          String? nuevaFotoUrl = alumno.fotoUrl;
+                          if (imagenSeleccionada != null) {
+                            final fileName =
+                                '${DateTime.now().millisecondsSinceEpoch}.jpg';
+                            final ref = FirebaseStorage.instance.ref().child(
+                              'fotos_alumnos/$fileName',
+                            );
+                            await ref.putFile(imagenSeleccionada!);
+                            nuevaFotoUrl = await ref.getDownloadURL();
+                          }
+                          await FirebaseFirestore.instance
+                              .collection('alumnos')
+                              .doc(alumnoMostrado.id)
+                              .update({
+                                'nombre': nombreController.text,
+                                'grado': gradoSeleccionado,
+                                'nombrePadre': nombrePadreController.text,
+                                'contactoEmergencia1':
+                                    contactoEmergencia1Controller.text,
+                                'contactoEmergencia2':
+                                    contactoEmergencia2Controller.text,
+                                'fotoUrl': nuevaFotoUrl,
+                              });
+                          setDialogState(() => cargandoFoto = false);
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pop(true);
+                        },
                 ),
               ],
             );
