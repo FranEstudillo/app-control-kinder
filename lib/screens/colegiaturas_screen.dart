@@ -559,11 +559,21 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
+                          radius: 24,
                           backgroundColor: colorGrado.withOpacity(0.2),
-                          child: Text(
-                            alumno.nombre.substring(0, 1),
-                            style: TextStyle(color: colorGrado),
-                          ),
+                          backgroundImage: alumno.fotoUrl != null
+                              ? NetworkImage(alumno.fotoUrl!)
+                              : null,
+                          child: alumno.fotoUrl == null
+                              ? Text(
+                                  alumno.nombre.substring(0, 1),
+                                  style: TextStyle(
+                                    color: colorGrado,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 24,
+                                  ),
+                                )
+                              : null,
                         ),
                         title: Text(alumno.nombre),
                         subtitle: Text(alumno.grado),
