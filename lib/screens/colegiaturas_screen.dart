@@ -5,6 +5,7 @@ import 'package:intl/intl.dart'; // Para formatear fechas.
 import '../models/alumno.dart'; // Modelo de datos para Alumno.
 import '../models/pago.dart'; // Modelo de datos para Pago.
 import 'package:app_control_kinder_v4/utils/color_utils.dart'; // Utilidades de color.
+import '../utils/totales_utils.dart';
 
 // Define el widget de la pantalla de Colegiaturas, que es un StatefulWidget.
 class ColegiaturasScreen extends StatefulWidget {
@@ -22,12 +23,14 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
 
   // ✅ 1. DECLARAMOS LA VARIABLE PARA GUARDAR EL FUTURE.
   late Future<Map<String, dynamic>> _datosColegiaturasFuture;
+  late Future<Map<String, double>> _totalesFuture;
 
   // ✅ 2. AÑADIMOS EL MÉTODO initState PARA INICIALIZAR LA VARIABLE UNA SOLA VEZ.
   @override
   void initState() {
     super.initState();
     _datosColegiaturasFuture = _getDatosColegiaturas();
+    _totalesFuture = getTotalesColegiaturasYGastos();
   }
 
   // Muestra un popup para registrar un nuevo pago de colegiatura.
@@ -404,28 +407,16 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
       ),
       body: Column(
         children: [
-          FutureBuilder<Map<String, dynamic>>(
-            // ✅ 3. USA LA VARIABLE DEL ESTADO EN LUGAR DE LLAMAR A LA FUNCIÓN DIRECTAMENTE.
-            future: _datosColegiaturasFuture,
+          FutureBuilder<Map<String, double>>(
+            future: _totalesFuture,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox(
-                  height: 250,
-                  child: Center(child: CircularProgressIndicator()),
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
                 );
               }
-              if (snapshot.hasError) {
-                return const Center(child: Text('Error al cargar los datos'));
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No hay datos disponibles'));
-              }
-
-              final datos = snapshot.data!;
-              final totalGeneral = datos['totalGeneral'] as double;
-              final totalEfectivo = datos['totalEfectivo'] as double;
-              final totalTarjeta = datos['totalTarjeta'] as double;
-
+              final totales = snapshot.data!;
               return Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
@@ -439,7 +430,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total Recaudado (Colegiaturas)'),
                         trailing: Text(
-                          '\$${totalGeneral.toStringAsFixed(2)}',
+                          '\$${totales['totalGeneral']!.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -456,7 +447,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total en efectivo'),
                         trailing: Text(
-                          '\$${totalEfectivo.toStringAsFixed(2)}',
+                          '\$${totales['totalEfectivo']!.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -473,7 +464,7 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
                         ),
                         title: const Text('Total en tarjeta'),
                         trailing: Text(
-                          '\$${totalTarjeta.toStringAsFixed(2)}',
+                          '\$${totales['totalTarjeta']!.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -637,8 +628,8 @@ class _ColegiaturasScreenState extends State<ColegiaturasScreen> {
           final huboCambios = await _mostrarPopupRegistrarPago();
           if (huboCambios == true) {
             setState(() {
-              // ✅ 4. VUELVE A EJECUTAR LA CONSULTA SOLO CUANDO HAYA CAMBIOS.
               _datosColegiaturasFuture = _getDatosColegiaturas();
+              _totalesFuture = getTotalesColegiaturasYGastos();
             });
           }
         },

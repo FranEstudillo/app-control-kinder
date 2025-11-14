@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'ingresos_screen.dart';
 import 'alumnos_screen.dart';
 import 'colegiaturas_screen.dart'; // Importa el nuevo widget ColegiaturasScreen
+import 'package:app_control_kinder_v4/screens/pagos_a_docentes.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -160,6 +161,47 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Este es el nuevo botón de Pagos a Docentes
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PagosADocentesScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Card(
+                    elevation: 4.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.orange.shade400,
+                          child: Icon(
+                            Icons.payments_outlined, // Ícono representativo
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Pagos a Docentes',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 // --- FIN DEL WIDGET AÑADIDO ---
               ],
             ),
@@ -170,6 +212,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisSpacing: 16.0,
               mainAxisSpacing: 16.0,
               children: <Widget>[
+                // Este es el boton de configuraciones de precios
                 InkWell(
                   onTap: () {
                     Navigator.push(
